@@ -48,6 +48,51 @@ const isNonCompliant = (status?: string | null) => {
   const s = status.toLowerCase();
   return s.includes('non') || s.includes('fail');
 };
+
+const isLtoExpired = (expiryStr?: string | null) => {
+  if (!expiryStr || !expiryStr.trim()) return false;
+  try {
+    const d = new Date(expiryStr);
+    if (isNaN(d.getTime())) return false;
+    return d < new Date();
+  } catch {
+    return false;
+  }
+};
+
+const getUpcomingInspectionInfo = (dateStr?: string | null) => {
+  if (!dateStr || !dateStr.trim()) return null;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const diffDays = Math.round((targetDate - startOfToday) / (1000 * 60 * 60 * 24));
+
+    if (diffDays >= 0 && diffDays <= 60) {
+      let label = `In ${diffDays}d`;
+      if (diffDays === 0) label = 'Today';
+      else if (diffDays === 1) label = 'Tomorrow';
+
+      return {
+        isUpcoming: true,
+        days: diffDays,
+        label,
+        isUrgent: diffDays <= 14,
+      };
+    } else if (diffDays < 0) {
+      return {
+        isOverdue: true,
+        days: Math.abs(diffDays),
+        label: 'Overdue',
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
 </script>
 
 <template>
@@ -61,7 +106,7 @@ const isNonCompliant = (status?: string | null) => {
     </td>
 
     <!-- 1. Establishment name & Location -->
-    <td class="px-3.5 py-4 max-w-65 lg:max-w-xs xl:max-w-xs">
+    <td class="px-3.5 py-4 max-w-65 lg:max-w-xs xl:max-w-50">
       <div class="flex flex-col min-w-0">
         <span 
           class="truncate font-semibold text-xs sm:text-[13px] text-[#111827] group-hover:text-[#1d4b35] transition-colors"
@@ -97,12 +142,26 @@ const isNonCompliant = (status?: string | null) => {
 
     <!-- 3. LTO number -->
     <td class="px-3 py-4 whitespace-nowrap">
-      <span 
-        v-if="establishment.lto_number" 
-        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-mono font-medium text-[#254b38] bg-[#e2ece6]"
-      >
-        {{ establishment.lto_number }}
-      </span>
+      <div v-if="establishment.lto_number" class="inline-flex items-center gap-1.5">
+        <span 
+          class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono font-medium transition-colors"
+          :class="[
+            isLtoExpired(establishment.expiry)
+              ? 'text-[#b83d3b] bg-[#faeae8] border border-[#f5d0cc]'
+              : 'text-[#254b38] bg-[#e2ece6]'
+          ]"
+        >
+          {{ establishment.lto_number }}
+        </span>
+        <span 
+          v-if="isLtoExpired(establishment.expiry)"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight bg-[#faeae8] text-[#c94242] border border-[#f5d0cc]"
+          :title="'LTO expired on ' + formatDate(establishment.expiry)"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-[#c94242] animate-pulse"></span>
+          Expired
+        </span>
+      </div>
       <span v-else class="text-[#889d90]">—</span>
     </td>
 
@@ -125,8 +184,36 @@ const isNonCompliant = (status?: string | null) => {
     </td>
 
     <!-- 5. Next inspection -->
-    <td class="px-3 py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-[#111827]">
-      {{ formatDate(establishment.next_inspection) }}
+    <td class="px-3 py-4 whitespace-nowrap">
+      <div class="inline-flex items-center gap-2">
+        <span class="text-xs sm:text-sm font-medium text-[#111827]">
+          {{ formatDate(establishment.next_inspection) }}
+        </span>
+        <span 
+          v-if="getUpcomingInspectionInfo(establishment.next_inspection)?.isUpcoming"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight"
+          :class="[
+            getUpcomingInspectionInfo(establishment.next_inspection)?.isUrgent
+              ? 'bg-[#fff5eb] text-[#b85414] border border-[#fedec0]'
+              : 'bg-[#e7f3eb] text-[#1e5238] border border-[#cfe2d6]'
+          ]"
+          :title="'Upcoming inspection ' + getUpcomingInspectionInfo(establishment.next_inspection)?.label"
+        >
+          <span 
+            class="w-1.5 h-1.5 rounded-full"
+            :class="getUpcomingInspectionInfo(establishment.next_inspection)?.isUrgent ? 'bg-[#b85414] animate-pulse' : 'bg-[#1e5238]'"
+          ></span>
+          <span>{{ getUpcomingInspectionInfo(establishment.next_inspection)?.label }}</span>
+        </span>
+        <span 
+          v-else-if="getUpcomingInspectionInfo(establishment.next_inspection)?.isOverdue"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight bg-[#faeae8] text-[#c94242] border border-[#f5d0cc]"
+          :title="'Inspection overdue by ' + getUpcomingInspectionInfo(establishment.next_inspection)?.days + ' days'"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-[#c94242]"></span>
+          <span>Overdue</span>
+        </span>
+      </div>
     </td>
 
     <!-- 6. Status -->
