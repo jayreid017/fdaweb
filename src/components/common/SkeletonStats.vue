@@ -3,7 +3,7 @@
     <div
       v-for="i in 4"
       :key="i"
-      class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-xs animate-pulse flex items-start justify-between"
+      class="bg-[#FFFEFB] rounded-xl border border-slate-200/80 p-5 shadow-xs animate-pulse flex items-start justify-between"
     >
       <div class="space-y-3 flex-1">
         <div class="h-3.5 bg-slate-200 rounded w-24"></div>

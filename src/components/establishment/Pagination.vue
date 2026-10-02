@@ -90,7 +90,7 @@ function handlePageSizeChange(e: Event) {
           id="page-size-select"
           :value="pageSize"
           @change="handlePageSizeChange"
-          class="bg-white border border-[#dce6df] text-xs rounded-lg px-2.5 py-1 text-[#172a1f] font-semibold focus:outline-hidden focus:ring-1 focus:ring-[#366649] focus:border-[#366649]"
+          class="bg-[#FFFEFB] border border-[#dce6df] text-xs rounded-lg px-2.5 py-1 text-[#172a1f] font-semibold focus:outline-hidden focus:ring-1 focus:ring-[#366649] focus:border-[#366649]"
         >
           <option :value="10">10 rows</option>
           <option :value="20">20 rows</option>

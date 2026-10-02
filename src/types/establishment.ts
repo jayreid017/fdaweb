@@ -1,54 +1,55 @@
 export type ProductType =
   | 'Food'
-  | 'Drugs'
+  | 'Drug'
   | 'Medical Devices'
   | 'Cosmetics'
   | 'Household/Urban Hazardous'
-  | 'Radiation Health';
+  | 'Radiation Health'
+  | string;
 
-export type EstablishmentStatus = 'Active' | 'Inactive' | 'Pending' | 'Expired';
+export type EstablishmentStatus = 'Active' | 'Inactive' | 'Pending' | 'Expired' | string;
 
-export type InspectionStatus = 'Completed' | 'For Inspection' | 'Failed' | 'Scheduled';
+export type InspectionStatus = 'Completed' | 'For Inspection' | 'Failed' | 'Scheduled' | string;
 
-export type InspectionFrequency = 'Quarterly' | 'Semi-Annually' | 'Annually' | 'Bi-annually';
+export type InspectionFrequency = 'Quarterly' | 'Semi-Annually' | 'Annually' | 'Bi-annually' | string;
 
 export interface Establishment {
   id: string;
-  establishmentName: string;
-  productType: ProductType;
-  primaryActivity: string;
-  specificActivities: string;
-  productLine: string;
-  products: string;
-  ltoNumber: string;
-  ltoIssuanceDate: string; // YYYY-MM-DD
-  expiryDate: string;      // YYYY-MM-DD
-  address: string;
-  province: string;
-  cityMunicipality: string;
-  owner: string;
-  contactNumber: string;
-  emailAddress: string;
-  lastInspection: string;  // YYYY-MM-DD
-  statusOfLastInspection: InspectionStatus;
-  frequency: InspectionFrequency;
-  nextInspection: string;  // YYYY-MM-DD
-  typeInspection: string;
-  inspector: string;
-  status: EstablishmentStatus;
-  createdAt?: string;
-  updatedAt?: string;
+  establishment_name: string;
+  product_type: string | null;
+  primary_activity: string | null;
+  specific_activities: string | null;
+  product_line: string | null;
+  products: string | null;
+  lto_number: string | null;
+  lto_issuance_date: string | null;
+  expiry: string | null;
+  address: string | null;
+  province: string | null;
+  city_municipality: string | null;
+  owner: string | null;
+  contact_number: string | null;
+  email_address: string | null;
+  last_inspection: string | null;
+  status_last_inspection: string | null;
+  frequency: string | null;
+  next_inspection: string | null;
+  type_inspection: string | null;
+  inspector: string | null;
+  status: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
-export type EstablishmentFormData = Omit<Establishment, 'id' | 'createdAt' | 'updatedAt'>;
+export type EstablishmentFormData = Omit<Establishment, 'id' | 'created_at' | 'updated_at'>;
 
 export interface FilterState {
   search: string;
-  productType: string;
+  product_type: string;
   province: string;
-  cityMunicipality: string;
+  city_municipality: string;
   status: string;
-  inspectionStatus: string;
+  status_last_inspection: string;
 }
 
 export interface SummaryStats {

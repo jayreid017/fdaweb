@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
+import bgLeaves from '../../assets/bg/bg-leaves.png';
+import logoFda from '../../assets/logoFDA.png';
 import type { 
   Establishment, 
   EstablishmentFormData, 
@@ -19,6 +21,24 @@ import DeleteConfirmationModal from './DeleteConfirmationModal.vue';
 import ToastNotification from '../common/ToastNotification.vue';
 import SkeletonStats from '../common/SkeletonStats.vue';
 
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarSeparator,
+  SidebarRail,
+} from '@/components/ui/sidebar';
+
 import { 
   Plus, 
   Building2, 
@@ -29,16 +49,15 @@ import {
   Settings,
   Bell,
   ChevronDown,
-  Menu,
-  X,
-  Search
+  Search,
+  Landmark,
+  Sun
 } from 'lucide-vue-next';
 
 // State
 const establishments = ref<Establishment[]>([]);
 const isLoading = ref<boolean>(true);
 const toasts = ref<ToastMessage[]>([]);
-const isMobileSidebarOpen = ref<boolean>(false);
 const activeNav = ref<string>('Establishment Management');
 
 // Top global search input
@@ -47,12 +66,15 @@ const globalSearch = ref<string>('');
 // Filter state
 const filters = reactive<FilterState>({
   search: '',
-  productType: '',
+  product_type: '',
   province: '',
-  cityMunicipality: '',
+  city_municipality: '',
   status: '',
-  inspectionStatus: '',
+  status_last_inspection: '',
 });
+
+// Interactive Stat Cards Filter ('all' | 'active' | 'expired' | 'upcoming')
+const activeStatFilter = ref<'all' | 'active' | 'expired' | 'upcoming'>('all');
 
 // Pagination state
 const currentPage = ref<number>(1);
@@ -82,15 +104,15 @@ function removeToast(id: string) {
   toasts.value = toasts.value.filter((t) => t.id !== id);
 }
 
-// Load data
+// Load data from Supabase
 async function loadData() {
   isLoading.value = true;
   try {
     const data = await EstablishmentService.getAll();
     establishments.value = data;
-  } catch (e) {
+  } catch (e: any) {
     console.error(e);
-    addToast('error', 'Error loading data', 'Failed to retrieve establishment records.');
+    addToast('error', 'Error loading data', e.message || 'Failed to retrieve establishment records from Supabase.');
   } finally {
     setTimeout(() => {
       isLoading.value = false;
@@ -100,26 +122,47 @@ async function loadData() {
 
 // Filtered Establishments
 const filteredEstablishments = computed(() => {
+  const now = new Date();
+  const upcomingLimit = new Date();
+  upcomingLimit.setDate(now.getDate() + 60);
+
   return establishments.value.filter((item) => {
+    // Quick filter from Statistics Cards
+    if (activeStatFilter.value === 'active') {
+      if (item.status?.trim().toLowerCase() !== 'active') return false;
+    } else if (activeStatFilter.value === 'expired') {
+      const statusLower = item.status?.trim().toLowerCase();
+      const expiry = item.expiry ? new Date(item.expiry) : null;
+      const isExpired = statusLower === 'expired' || (expiry && !isNaN(expiry.getTime()) && expiry < now);
+      if (!isExpired) return false;
+    } else if (activeStatFilter.value === 'upcoming') {
+      if (!item.next_inspection) return false;
+      const nextInsp = new Date(item.next_inspection);
+      if (isNaN(nextInsp.getTime()) || nextInsp < now || nextInsp > upcomingLimit) {
+        return false;
+      }
+    }
     // Top global search OR toolbar search
     const query = (filters.search || globalSearch.value).toLowerCase().trim();
     if (query) {
       const match =
-        item.establishmentName?.toLowerCase().includes(query) ||
-        item.ltoNumber?.toLowerCase().includes(query) ||
+        item.establishment_name?.toLowerCase().includes(query) ||
+        item.lto_number?.toLowerCase().includes(query) ||
         item.owner?.toLowerCase().includes(query) ||
-        item.contactNumber?.toLowerCase().includes(query) ||
-        item.emailAddress?.toLowerCase().includes(query) ||
+        item.contact_number?.toLowerCase().includes(query) ||
+        item.email_address?.toLowerCase().includes(query) ||
         item.province?.toLowerCase().includes(query) ||
-        item.cityMunicipality?.toLowerCase().includes(query) ||
+        item.city_municipality?.toLowerCase().includes(query) ||
         item.inspector?.toLowerCase().includes(query) ||
-        item.products?.toLowerCase().includes(query);
+        item.products?.toLowerCase().includes(query) ||
+        item.product_type?.toLowerCase().includes(query) ||
+        item.primary_activity?.toLowerCase().includes(query);
 
       if (!match) return false;
     }
 
     // Product type
-    if (filters.productType && item.productType !== filters.productType) {
+    if (filters.product_type && item.product_type !== filters.product_type) {
       return false;
     }
 
@@ -129,7 +172,7 @@ const filteredEstablishments = computed(() => {
     }
 
     // City/Municipality
-    if (filters.cityMunicipality && item.cityMunicipality !== filters.cityMunicipality) {
+    if (filters.city_municipality && item.city_municipality !== filters.city_municipality) {
       return false;
     }
 
@@ -139,7 +182,7 @@ const filteredEstablishments = computed(() => {
     }
 
     // Inspection status
-    if (filters.inspectionStatus && item.statusOfLastInspection !== filters.inspectionStatus) {
+    if (filters.status_last_inspection && item.status_last_inspection !== filters.status_last_inspection) {
       return false;
     }
 
@@ -162,11 +205,12 @@ const stats = computed<SummaryStats>(() => {
 function resetFilters() {
   filters.search = '';
   globalSearch.value = '';
-  filters.productType = '';
+  filters.product_type = '';
   filters.province = '';
-  filters.cityMunicipality = '';
+  filters.city_municipality = '';
   filters.status = '';
-  filters.inspectionStatus = '';
+  filters.status_last_inspection = '';
+  activeStatFilter.value = 'all';
   currentPage.value = 1;
   addToast('info', 'Filters Reset', 'All search and filter criteria have been cleared.');
 }
@@ -204,12 +248,12 @@ async function handleSaveEstablishment(formData: EstablishmentFormData) {
       if (idx !== -1) {
         establishments.value[idx] = updated;
       }
-      addToast('success', 'Establishment updated successfully.', `Details for "${updated.establishmentName}" have been updated.`);
+      addToast('success', 'Establishment updated successfully.', `Details for "${updated.establishment_name}" have been updated.`);
     } else {
       const created = await EstablishmentService.create(formData);
       establishments.value.unshift(created);
       currentPage.value = 1;
-      addToast('success', 'Establishment created successfully.', `"${created.establishmentName}" has been registered.`);
+      addToast('success', 'Establishment created successfully.', `"${created.establishment_name}" has been registered.`);
     }
 
     isFormModalOpen.value = false;
@@ -232,7 +276,7 @@ async function handleConfirmDelete() {
       if (currentPage.value > maxPage) {
         currentPage.value = maxPage;
       }
-      addToast('success', 'Establishment deleted successfully.', `"${target.establishmentName}" was deleted from the registry.`);
+      addToast('success', 'Establishment deleted successfully.', `"${target.establishment_name}" was deleted from the registry.`);
     } else {
       addToast('error', 'Unable to delete establishment.', 'Record could not be found or was already deleted.');
     }
@@ -245,18 +289,9 @@ async function handleConfirmDelete() {
   }
 }
 
-async function handleResetDemoData() {
-  if (confirm('Reset sample records to default initial database?')) {
-    isLoading.value = true;
-    const res = await EstablishmentService.resetToDefaults();
-    establishments.value = res;
-    currentPage.value = 1;
-    resetFilters();
-    setTimeout(() => {
-      isLoading.value = false;
-      addToast('success', 'Sample Data Restored', 'The registry has been re-seeded with official sample records.');
-    }, 200);
-  }
+async function handleRefreshData() {
+  await loadData();
+  addToast('info', 'Data Refreshed', 'Latest records fetched from Supabase.');
 }
 
 function exportToCSV() {
@@ -270,7 +305,7 @@ function exportToCSV() {
     'Establishment Name',
     'Product Type',
     'Primary Activity',
-    'Specific Activity/s',
+    'Specific Activities',
     'Product Line',
     'Products',
     'LTO Number',
@@ -286,33 +321,33 @@ function exportToCSV() {
     'Status of Last Inspection',
     'Frequency',
     'Next Inspection',
-    'Type Inspection',
+    'Type of Inspection',
     'Inspector',
     'Status'
   ];
 
   const rows = filteredEstablishments.value.map((item, idx) => [
     idx + 1,
-    `"${(item.establishmentName || '').replace(/"/g, '""')}"`,
-    `"${item.productType || ''}"`,
-    `"${item.primaryActivity || ''}"`,
-    `"${(item.specificActivities || '').replace(/"/g, '""')}"`,
-    `"${(item.productLine || '').replace(/"/g, '""')}"`,
+    `"${(item.establishment_name || '').replace(/"/g, '""')}"`,
+    `"${item.product_type || ''}"`,
+    `"${item.primary_activity || ''}"`,
+    `"${(item.specific_activities || '').replace(/"/g, '""')}"`,
+    `"${(item.product_line || '').replace(/"/g, '""')}"`,
     `"${(item.products || '').replace(/"/g, '""')}"`,
-    `"${item.ltoNumber || ''}"`,
-    item.ltoIssuanceDate || '',
-    item.expiryDate || '',
+    `"${item.lto_number || ''}"`,
+    item.lto_issuance_date || '',
+    item.expiry || '',
     `"${(item.address || '').replace(/"/g, '""')}"`,
     `"${item.province || ''}"`,
-    `"${item.cityMunicipality || ''}"`,
+    `"${item.city_municipality || ''}"`,
     `"${(item.owner || '').replace(/"/g, '""')}"`,
-    `"${item.contactNumber || ''}"`,
-    `"${item.emailAddress || ''}"`,
-    item.lastInspection || '',
-    `"${item.statusOfLastInspection || ''}"`,
+    `"${item.contact_number || ''}"`,
+    `"${item.email_address || ''}"`,
+    item.last_inspection || '',
+    `"${item.status_last_inspection || ''}"`,
     `"${item.frequency || ''}"`,
-    item.nextInspection || '',
-    `"${item.typeInspection || ''}"`,
+    item.next_inspection || '',
+    `"${item.type_inspection || ''}"`,
     `"${item.inspector || ''}"`,
     `"${item.status || ''}"`
   ]);
@@ -335,311 +370,278 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f9f6] flex text-[#172a1f] relative overflow-x-hidden">
-    <!-- Background Botanical Leaf Watermark Accents (mirroring image 1) -->
-    <div class="absolute top-0 right-0 w-96 h-96 pointer-events-none opacity-40 select-none z-0">
-      <svg viewBox="0 0 400 400" fill="none" class="w-full h-full text-[#dbe8de]">
-        <path d="M400,0 C320,60 260,160 270,250 C220,180 200,90 230,0 Z" fill="currentColor" opacity="0.4"/>
-        <path d="M400,100 C340,150 280,260 300,380 C260,290 250,190 310,90 Z" fill="currentColor" opacity="0.25"/>
-      </svg>
-    </div>
-
-    <!-- LEFT SIDEBAR (as shown in Image 1) -->
-    <aside
-      :class="[
-        'w-64 bg-white border-r border-[#e4ede6] flex flex-col shrink-0 z-50 transition-all duration-200 fixed inset-y-0 left-0 lg:static',
-        isMobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0',
-      ]"
-    >
-      <!-- Top Brand Logo -->
-      <div class="p-6 border-b border-[#edf4ee] flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-[#366649] text-white flex items-center justify-center shrink-0 shadow-xs">
-            <!-- Classical Temple / Government Pillar Icon -->
-            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2L2 7h20L12 2zm-8 7v9h2V9H4zm5 0v9h2V9H9zm5 0v9h2V9h-2zm5 0v9h2V9h-2zM2 20v2h20v-2H2z" />
-            </svg>
-          </div>
-          <div>
-            <h1 class="text-sm font-extrabold text-[#172a1f] tracking-tight leading-tight">
-              FDA Regulatory Portal
-            </h1>
-            <p class="text-[10px] text-[#637d6e] leading-snug mt-0.5">
-              Center for Device Regulation, Radiation Health & Research
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          @click="isMobileSidebarOpen = false"
-          class="lg:hidden text-[#637d6e] hover:text-[#172a1f] p-1 rounded-lg"
-        >
-          <X class="w-5 h-5" />
-        </button>
-      </div>
-
-      <!-- Navigation Menu -->
-      <nav class="p-4 space-y-1.5 flex-1">
-        <!-- Home -->
-        <a
-          href="#"
-          @click.prevent="activeNav = 'Home'"
-          :class="[
-            'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all',
-            activeNav === 'Home'
-              ? 'bg-[#366649] text-white shadow-xs'
-              : 'text-[#4e6858] hover:bg-[#edf5ef] hover:text-[#172a1f]'
-          ]"
-        >
-          <Home class="w-4 h-4" />
-          <span>Home</span>
-        </a>
-
-        <!-- Establishment Management (Active pill as in image 1) -->
-        <a
-          href="#"
-          @click.prevent="activeNav = 'Establishment Management'"
-          :class="[
-            'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all',
-            activeNav === 'Establishment Management'
-              ? 'bg-[#366649] text-white shadow-xs'
-              : 'text-[#4e6858] hover:bg-[#edf5ef] hover:text-[#172a1f]'
-          ]"
-        >
-          <Building2 class="w-4 h-4" />
-          <span>Establishment Management</span>
-        </a>
-
-        <!-- Licenses & Inspections -->
-        <a
-          href="#"
-          @click.prevent="activeNav = 'Licenses & Inspections'"
-          :class="[
-            'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all',
-            activeNav === 'Licenses & Inspections'
-              ? 'bg-[#366649] text-white shadow-xs'
-              : 'text-[#4e6858] hover:bg-[#edf5ef] hover:text-[#172a1f]'
-          ]"
-        >
-          <FileText class="w-4 h-4" />
-          <span>Licenses & Inspections</span>
-        </a>
-
-        <!-- Regulatory Information -->
-        <a
-          href="#"
-          @click.prevent="activeNav = 'Regulatory Information'"
-          :class="[
-            'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all',
-            activeNav === 'Regulatory Information'
-              ? 'bg-[#366649] text-white shadow-xs'
-              : 'text-[#4e6858] hover:bg-[#edf5ef] hover:text-[#172a1f]'
-          ]"
-        >
-          <ShieldCheck class="w-4 h-4" />
-          <span>Regulatory Information</span>
-        </a>
-
-        <!-- Reports -->
-        <a
-          href="#"
-          @click.prevent="activeNav = 'Reports'"
-          :class="[
-            'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all',
-            activeNav === 'Reports'
-              ? 'bg-[#366649] text-white shadow-xs'
-              : 'text-[#4e6858] hover:bg-[#edf5ef] hover:text-[#172a1f]'
-          ]"
-        >
-          <BarChart2 class="w-4 h-4" />
-          <span>Reports</span>
-        </a>
-
-        <!-- Settings -->
-        <a
-          href="#"
-          @click.prevent="activeNav = 'Settings'"
-          :class="[
-            'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all',
-            activeNav === 'Settings'
-              ? 'bg-[#366649] text-white shadow-xs'
-              : 'text-[#4e6858] hover:bg-[#edf5ef] hover:text-[#172a1f]'
-          ]"
-        >
-          <Settings class="w-4 h-4" />
-          <span>Settings</span>
-        </a>
-      </nav>
-
-      <!-- Bottom Watermark & Motto (from Image 1) -->
-      <div class="p-6 relative overflow-hidden mt-auto border-t border-[#edf4ee] bg-[#fafcf9]">
-        <!-- Delicate organic leaf illustration -->
-        <div class="absolute bottom-0 left-0 w-28 h-28 pointer-events-none opacity-30 text-[#366649]">
-          <svg viewBox="0 0 100 100" fill="currentColor">
-            <path d="M0,100 C20,70 50,50 80,40 C60,60 40,80 0,100 Z" opacity="0.6"/>
-            <path d="M0,60 C30,40 60,30 90,10 C70,35 45,55 0,60 Z" opacity="0.4"/>
-          </svg>
-        </div>
-
-        <div class="relative z-10 pl-2">
-          <div class="w-6 h-0.5 bg-[#366649] mb-3 rounded-full"></div>
-          <p class="text-xs font-bold text-[#1f3d2a] leading-tight">
-            Safer Devices.
-          </p>
-          <p class="text-xs font-bold text-[#1f3d2a] leading-tight">
-            Healthier Tomorrow.
-          </p>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Overlay for mobile sidebar -->
+  <SidebarProvider>
     <div
-      v-if="isMobileSidebarOpen"
-      @click="isMobileSidebarOpen = false"
-      class="fixed inset-0 bg-[#172a1f]/40 backdrop-blur-2xs z-40 lg:hidden"
-    ></div>
+      class="flex min-h-screen w-full text-[#172a1f] relative bg-transparent"
+    >
+      <!-- SHADCN SIDEBAR -->
+      <Sidebar
+        collapsible="icon"
+        class="border-r border-[#1a422e]/60 bg-[#133323] text-[#dfd7b8] transition-[width] duration-200"
+      >
+        <!-- Header: Brand -->
+        <SidebarHeader class="p-4 border-b border-[#1b4330]/60 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-5 group-data-[collapsible=icon]:pb-2 group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
+          <!-- Expanded View -->
+          <div class="flex items-center gap-3 overflow-hidden group-data-[collapsible=icon]:hidden">
+            <div class="w-11 h-11 flex items-center justify-center shrink-0">
+              <img :src="logoFda" alt="FDA Logo" class="w-full h-full object-contain" />
+            </div>
+            <div class="flex flex-col min-w-0 flex-1">
+              <p class="text-xs font-bold text-[#f3ebd9] tracking-tight truncate leading-tight">FDA Regulatory Portal</p>
+              <p class="text-[10px] text-[#9db8a7] font-medium truncate leading-tight mt-0.5">CDRHR Registry</p>
+            </div>
+          </div>
 
-    <!-- MAIN APP CONTAINER -->
-    <div class="flex-1 flex flex-col min-w-0 z-10">
-      <!-- TOP NAVIGATION BAR (as shown in Image 1) -->
-      <header class="bg-white border-b border-[#e4ede6] h-16 flex items-center justify-between px-4 sm:px-8 shrink-0">
-        <!-- Left: Mobile toggle + Global Search input in light pill -->
-        <div class="flex items-center gap-3 flex-1 max-w-xl">
-          <button
-            type="button"
-            @click="isMobileSidebarOpen = true"
-            class="lg:hidden text-[#4e6858] hover:text-[#172a1f] p-2 rounded-lg hover:bg-[#edf5ef]"
-          >
-            <Menu class="w-5 h-5" />
-          </button>
+          <!-- Collapsed Brand Logo -->
+          <div class="hidden group-data-[collapsible=icon]:flex items-center justify-center">
+            <div class="w-10 h-10 flex items-center justify-center shrink-0">
+              <img :src="logoFda" alt="FDA Logo" class="w-full h-full object-contain" />
+            </div>
+          </div>
+        </SidebarHeader>
 
-          <!-- Top Search Input (pill shape) -->
-          <div class="relative w-full max-w-md hidden sm:block">
-            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#71887a]">
-              <Search class="w-4 h-4" />
+        <!-- Navigation -->
+        <SidebarContent class="py-4 px-3 group-data-[collapsible=icon]:py-3 group-data-[collapsible=icon]:px-0">
+          <SidebarGroup class="p-0 group-data-[collapsible=icon]:p-0">
+            <SidebarGroupLabel class="text-[11px] font-semibold text-[#8fa797] tracking-wider uppercase px-3.5 mb-2 group-data-[collapsible=icon]:hidden">
+              Platform
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu class="gap-2 group-data-[collapsible=icon]:gap-4.5 group-data-[collapsible=icon]:items-center">
+                <SidebarMenuItem class="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                  <SidebarMenuButton
+                    :is-active="activeNav === 'Home'"
+                    tooltip="Home"
+                    @click="activeNav = 'Home'"
+                    class="h-11 rounded-2xl px-3.5 gap-3 cursor-pointer text-[#dfd7b8] hover:bg-[#1a3d2a] hover:text-[#f3ebd9] data-[active=true]:bg-[#254231] data-[active=true]:text-[#f3ebd9] data-[active=true]:font-semibold shadow-xs transition-colors group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                  >
+                    <Home class="w-5 h-5 shrink-0 stroke-[1.6]" />
+                    <span class="group-data-[collapsible=icon]:hidden truncate text-xs sm:text-sm font-medium">Home</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem class="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                  <SidebarMenuButton
+                    :is-active="activeNav === 'Establishment Management'"
+                    tooltip="Establishment Management"
+                    @click="activeNav = 'Establishment Management'"
+                    class="h-11 rounded-2xl px-3.5 gap-3 cursor-pointer text-[#dfd7b8] hover:bg-[#1a3d2a] hover:text-[#f3ebd9] data-[active=true]:bg-[#254231] data-[active=true]:text-[#f3ebd9] data-[active=true]:font-semibold shadow-xs transition-colors group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                  >
+                    <Landmark class="w-5 h-5 shrink-0 stroke-[1.6]" />
+                    <span class="group-data-[collapsible=icon]:hidden truncate text-xs sm:text-sm font-medium">Establishment Management</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem class="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                  <SidebarMenuButton
+                    :is-active="activeNav === 'Licenses & Inspections'"
+                    tooltip="Licenses & Inspections"
+                    @click="activeNav = 'Licenses & Inspections'"
+                    class="h-11 rounded-2xl px-3.5 gap-3 cursor-pointer text-[#dfd7b8] hover:bg-[#1a3d2a] hover:text-[#f3ebd9] data-[active=true]:bg-[#254231] data-[active=true]:text-[#f3ebd9] data-[active=true]:font-semibold shadow-xs transition-colors group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                  >
+                    <FileText class="w-5 h-5 shrink-0 stroke-[1.6]" />
+                    <span class="group-data-[collapsible=icon]:hidden truncate text-xs sm:text-sm font-medium">Licenses & Inspections</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem class="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                  <SidebarMenuButton
+                    :is-active="activeNav === 'Regulatory Information'"
+                    tooltip="Regulatory Information"
+                    @click="activeNav = 'Regulatory Information'"
+                    class="h-11 rounded-2xl px-3.5 gap-3 cursor-pointer text-[#dfd7b8] hover:bg-[#1a3d2a] hover:text-[#f3ebd9] data-[active=true]:bg-[#254231] data-[active=true]:text-[#f3ebd9] data-[active=true]:font-semibold shadow-xs transition-colors group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                  >
+                    <ShieldCheck class="w-5 h-5 shrink-0 stroke-[1.6]" />
+                    <span class="group-data-[collapsible=icon]:hidden truncate text-xs sm:text-sm font-medium">Regulatory Information</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem class="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                  <SidebarMenuButton
+                    :is-active="activeNav === 'Reports'"
+                    tooltip="Reports"
+                    @click="activeNav = 'Reports'"
+                    class="h-11 rounded-2xl px-3.5 gap-3 cursor-pointer text-[#dfd7b8] hover:bg-[#1a3d2a] hover:text-[#f3ebd9] data-[active=true]:bg-[#254231] data-[active=true]:text-[#f3ebd9] data-[active=true]:font-semibold shadow-xs transition-colors group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                  >
+                    <BarChart2 class="w-5 h-5 shrink-0 stroke-[1.6]" />
+                    <span class="group-data-[collapsible=icon]:hidden truncate text-xs sm:text-sm font-medium">Reports</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem class="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                  <SidebarMenuButton
+                    :is-active="activeNav === 'Settings'"
+                    tooltip="Settings"
+                    @click="activeNav = 'Settings'"
+                    class="h-11 rounded-2xl px-3.5 gap-3 cursor-pointer text-[#dfd7b8] hover:bg-[#1a3d2a] hover:text-[#f3ebd9] data-[active=true]:bg-[#254231] data-[active=true]:text-[#f3ebd9] data-[active=true]:font-semibold shadow-xs transition-colors group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                  >
+                    <Sun class="w-5 h-5 shrink-0 stroke-[1.6]" />
+                    <span class="group-data-[collapsible=icon]:hidden truncate text-xs sm:text-sm font-medium">Settings</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <!-- Footer: Motto -->
+        <SidebarFooter class="p-4 border-t border-[#1b4330]/60 bg-[#133323] group-data-[collapsible=icon]:hidden">
+          <div>
+            <div class="w-6 h-0.5 bg-[#7e855a] mb-2 rounded-full"></div>
+            <p class="text-[11px] font-bold text-[#f3ebd9] leading-tight">Safer Devices.</p>
+            <p class="text-[10px] text-[#9db8a7] leading-tight mt-0.5">Healthier Tomorrow.</p>
+          </div>
+        </SidebarFooter>
+
+        <!-- Rail for drag / quick-toggle -->
+        <SidebarRail />
+      </Sidebar>
+
+      <!-- MAIN CONTENT AREA -->
+      <SidebarInset class="flex flex-col min-h-screen bg-transparent">
+        <!-- TOP HEADER -->
+        <header class="bg-[#F9F6ED]/90 z-40 backdrop-blur-sm border-b border-[#ecebe4] h-16 py-9 flex items-center justify-between px-4 sm:px-8 shrink-0 sticky top-0 z-20">
+          <!-- Left: Sidebar trigger + Breadcrumbs -->
+          <div class="flex items-center gap-3">
+            <SidebarTrigger
+              id="sidebar-toggle-btn"
+              class="text-[#5c6e64] hover:text-[#1a2b21] hover:bg-[#eae8df] rounded-lg border border-[#e2e1d7] h-8 w-8 flex items-center justify-center transition-colors shadow-2xs"
+            />
+
+            <div class="h-4 w-px bg-[#e0ded5]"></div>
+
+            <!-- Breadcrumb Navigation -->
+            <nav class="flex items-center text-xs sm:text-sm" aria-label="Breadcrumb">
+              <span class="text-[#738278] hover:text-[#1a2b21] cursor-pointer transition-colors font-normal whitespace-nowrap">Building Your Application</span>
+              <span class="text-[#9caaa1] mx-2 font-light">/</span>
+              <span class="font-semibold text-[#1e2e25] whitespace-nowrap">{{ activeNav }}</span>
+            </nav>
+          </div>
+
+          <!-- Center: Pill Global Search Bar -->
+          <div class="relative w-full max-w-sm lg:max-w-md mx-4 hidden md:block">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8a9b91]">
+              <Search class="w-4 h-4 stroke-[1.8]" />
             </div>
             <input
               type="text"
               v-model="globalSearch"
-              placeholder="Search establishment, license, province..."
-              class="w-full pl-10 pr-4 py-2 bg-[#f0f4f1] hover:bg-[#e9efe9] focus:bg-white text-xs sm:text-sm text-[#172a1f] placeholder:text-[#7f9587] rounded-full border border-transparent focus:border-[#366649] focus:outline-hidden transition-all duration-150"
+              placeholder="Search establishment, license..."
+              class="w-full pl-10 pr-4 py-2 bg-[#FFFEFB] text-xs sm:text-sm text-[#1e2e25] placeholder:text-[#8a9b91] rounded-full border border-[#dfe5df] shadow-xs focus:outline-hidden focus:border-[#7e855a] focus:ring-1 focus:ring-[#7e855a]/30 transition-all duration-150"
             />
           </div>
-        </div>
 
-        <!-- Right: Notifications & User Profile (as shown in Image 1) -->
-        <div class="flex items-center gap-4">
-          <!-- Notification Bell with unread dot -->
-          <button
-            type="button"
-            class="relative p-2 text-[#4e6858] hover:text-[#172a1f] hover:bg-[#edf5ef] rounded-full transition-colors cursor-pointer"
-            title="Notifications"
-          >
-            <Bell class="w-4 h-4" />
-            <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#366649] ring-2 ring-white"></span>
-          </button>
-
-          <div class="h-6 w-px bg-[#e2ebe4] hidden sm:block"></div>
-
-          <!-- User Profile Dropdown -->
-          <div class="flex items-center gap-3 cursor-pointer group">
-            <div class="w-9 h-9 rounded-full bg-[#28573a] text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-              JD
-            </div>
-            <div class="hidden sm:block text-left">
-              <p class="text-xs font-bold text-[#172a1f] leading-tight group-hover:text-[#28573a] transition-colors">
-                John Doe
-              </p>
-              <p class="text-[10px] text-[#698072] leading-tight">
-                Regulatory Officer
-              </p>
-            </div>
-            <ChevronDown class="w-3.5 h-3.5 text-[#728a7c] group-hover:text-[#172a1f] transition-colors hidden sm:block" />
-          </div>
-        </div>
-      </header>
-
-      <!-- MAIN PAGE CONTENT -->
-      <main class="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
-        <!-- Page Title & Primary Header Row (as shown in Image 1) -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <p class="text-[11px] font-bold tracking-wider text-[#366649] uppercase">
-              FDA Regulatory Portal
-            </p>
-            <h1 class="text-2xl sm:text-3xl font-extrabold text-[#172a1f] tracking-tight mt-0.5">
-              Establishment Management
-            </h1>
-            <p class="text-xs sm:text-sm text-[#5a7465] mt-1">
-              Manage establishments, licenses, inspections, and regulatory information.
-            </p>
-          </div>
-
-          <!-- + Add Establishment Button (forest green rounded button) -->
-          <div>
+          <!-- Right: Bell + Divider + User Profile -->
+          <div class="flex items-center gap-3 sm:gap-4 shrink-0">
+            <!-- Notifications Bell with Amber Dot -->
             <button
               type="button"
-              id="add-establishment-btn"
-              @click="openAddModal"
-              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#366649] hover:bg-[#2b533a] active:bg-[#22442e] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:shadow-md transition-all duration-150 cursor-pointer active:scale-98"
+              class="relative p-2 text-[#63766c] hover:text-[#1a2b21] hover:bg-[#eae8df] rounded-full transition-colors cursor-pointer"
+              title="Notifications"
             >
-              <Plus class="w-4 h-4" />
-              <span>+ Add Establishment</span>
+              <Bell class="w-4.5 h-4.5 stroke-[1.8]" />
+              <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#c99a38] ring-2 ring-[#f7f6f1]"></span>
             </button>
+
+            <!-- Vertical Divider -->
+            <div class="h-7 w-px bg-[#e1e4de]"></div>
+
+            <!-- User Profile (Dark Green Avatar with Gold Ring) -->
+            <div class="flex items-center gap-3 cursor-pointer group">
+              <div class="w-10 h-10 rounded-full bg-[#1b3829] border border-[#c4a675] text-[#f3ebd9] flex items-center justify-center font-bold text-xs shadow-xs shrink-0 transition-transform group-hover:scale-102">
+                JD
+              </div>
+              <div class="hidden sm:block text-left">
+                <p class="text-xs sm:text-sm font-bold text-[#1a2c22] leading-tight group-hover:text-[#1b3829] transition-colors">John Doe</p>
+                <p class="text-[10px] sm:text-[11px] text-[#718579] font-medium leading-tight mt-0.5">Regulatory Officer</p>
+              </div>
+            </div>
           </div>
-        </div>
+        </header>
 
-        <!-- 4 Summary Statistics Cards -->
-        <section aria-label="Establishment Statistics">
-          <SkeletonStats v-if="isLoading" />
-          <StatisticsCards v-else :stats="stats" />
-        </section>
+        <!-- MAIN PAGE CONTENT -->
+        <main class="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-7">
+          <!-- Page Title -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+            <div>
+              <p class="text-xs font-semibold tracking-[0.16em] text-[#a47c3b] uppercase mb-1.5">
+                FDA REGULATORY PORTAL
+              </p>
+              <h1 class="text-3xl sm:text-4xl lg:text-[44px] font-serif font-bold text-[#0f241a] tracking-tight leading-[1.15] mb-2">
+                Establishment Management
+              </h1>
+              <p class="text-xs sm:text-sm text-[#667a6e] font-normal">
+                Manage establishments, licenses, inspections, and regulatory information.
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                id="add-establishment-btn"
+                @click="openAddModal"
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#1d4b35] hover:bg-[#153a29] active:bg-[#102e20] text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-[0_8px_20px_-4px_rgba(29,75,53,0.38)] hover:shadow-lg transition-all duration-150 cursor-pointer"
+              >
+                <Plus class="w-4 h-4 stroke-[2.2]" />
+                <span>Add establishment</span>
+              </button>
+            </div>
+          </div>
 
-        <!-- Search Toolbar with CAR Provinces -->
-        <section aria-label="Establishment Filters">
-          <SearchToolbar
-            :filters="filters"
-            @update:filters="(f) => { Object.assign(filters, f); currentPage = 1; }"
-            @reset="resetFilters"
-          />
-        </section>
+          <!-- Statistics -->
+          <section aria-label="Establishment Statistics">
+            <SkeletonStats v-if="isLoading" />
+            <StatisticsCards
+              v-else
+              :stats="stats"
+              :active-filter="activeStatFilter"
+              @filter-change="(f) => { activeStatFilter = f; currentPage = 1; }"
+            />
+          </section>
 
-        <!-- Table Card with 24 Columns, Export CSV, and Reset Demo -->
-        <section aria-label="Establishment Table">
-          <EstablishmentTable
-            :establishments="paginatedEstablishments"
-            :total-filtered-count="filteredEstablishments.length"
-            :is-loading="isLoading"
-            :start-index="(currentPage - 1) * pageSize"
-            @view="openViewModal"
-            @edit="openEditModal"
-            @delete="openDeleteModal"
-            @add="openAddModal"
-            @export="exportToCSV"
-            @reset-demo="handleResetDemoData"
-          />
+          <!-- Search Toolbar -->
+          <section aria-label="Establishment Filters">
+            <SearchToolbar
+              :filters="filters"
+              @update:filters="(f) => { Object.assign(filters, f); currentPage = 1; }"
+              @reset="resetFilters"
+            />
+          </section>
 
-          <!-- Pagination Controls -->
-          <Pagination
-            v-if="!isLoading && filteredEstablishments.length > 0"
-            :current-page="currentPage"
-            :page-size="pageSize"
-            :total-items="filteredEstablishments.length"
-            @update:current-page="(p) => currentPage = p"
-            @update:page-size="(s) => { pageSize = s; currentPage = 1; }"
-          />
-        </section>
-      </main>
+          <!-- Table -->
+          <section aria-label="Establishment Table">
+            <EstablishmentTable
+              :establishments="paginatedEstablishments"
+              :total-filtered-count="filteredEstablishments.length"
+              :total-count="establishments.length"
+              :is-loading="isLoading"
+              :start-index="(currentPage - 1) * pageSize"
+              @view="openViewModal"
+              @edit="openEditModal"
+              @delete="openDeleteModal"
+              @add="openAddModal"
+              @export="exportToCSV"
+              @refresh="handleRefreshData"
+            />
 
-      <!-- Footer -->
-      <footer class="border-t border-[#e2ebe4] bg-white py-4 px-6 text-xs text-[#637d6e] mt-auto">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>© 2026 Republic of the Philippines • Food and Drug Administration. All rights reserved.</p>
-          <p class="text-[11px] text-[#869c90]">Cordillera Administrative Region (CAR) Regulatory Oversight</p>
-        </div>
-      </footer>
+            <Pagination
+              v-if="!isLoading && filteredEstablishments.length > 0"
+              :current-page="currentPage"
+              :page-size="pageSize"
+              :total-items="filteredEstablishments.length"
+              @update:current-page="(p) => currentPage = p"
+              @update:page-size="(s) => { pageSize = s; currentPage = 1; }"
+            />
+          </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-[#e2ebe4] bg-[#FFFEFB]/80 py-4 px-6 text-xs text-[#637d6e] mt-auto">
+          <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>© 2026 Republic of the Philippines • Food and Drug Administration. All rights reserved.</p>
+            <p class="text-[11px] text-[#869c90]">Cordillera Administrative Region (CAR) Regulatory Oversight</p>
+          </div>
+        </footer>
+      </SidebarInset>
     </div>
 
     <!-- Modals -->
@@ -649,25 +651,21 @@ onMounted(() => {
       @close="isFormModalOpen = false"
       @save="handleSaveEstablishment"
     />
-
     <EstablishmentViewModal
       :is-open="isViewModalOpen"
       :establishment="viewModalTarget"
       @close="isViewModalOpen = false"
       @edit="handleViewEdit"
     />
-
     <DeleteConfirmationModal
       :is-open="isDeleteModalOpen"
       :establishment="deleteModalTarget"
       @close="isDeleteModalOpen = false"
       @confirm="handleConfirmDelete"
     />
-
-    <!-- Toasts -->
     <ToastNotification
       :toasts="toasts"
       @dismiss="removeToast"
     />
-  </div>
+  </SidebarProvider>
 </template>

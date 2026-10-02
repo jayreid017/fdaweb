@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, onUnmounted, computed } from 'vue';
+import { reactive, watch, ref, computed, onMounted, onUnmounted } from 'vue';
 import type { Establishment, EstablishmentFormData, FormErrors } from '../../types/establishment';
 import { 
   PRODUCT_TYPES, 
   PRIMARY_ACTIVITIES, 
   PHILIPPINE_LOCATIONS, 
   ESTABLISHMENT_STATUSES, 
-  INSPECTION_STATUSES,
-  INSPECTION_FREQUENCIES,
+  INSPECTION_STATUSES, 
+  INSPECTION_FREQUENCIES, 
   INSPECTION_TYPES 
 } from '../../data/locationData';
 import { 
   X, 
   Building2, 
+  Landmark,
   FileBadge2, 
   MapPin, 
   UserCheck, 
@@ -22,7 +23,7 @@ import {
 
 const props = defineProps<{
   isOpen: boolean;
-  establishment: Establishment | null; // null means Add, object means Edit
+  establishment: Establishment | null;
 }>();
 
 const emit = defineEmits<{
@@ -40,26 +41,26 @@ const provincesList = computed(() => {
 });
 
 const form = reactive<EstablishmentFormData>({
-  establishmentName: '',
-  productType: 'Food',
-  primaryActivity: 'Manufacturer',
-  specificActivities: '',
-  productLine: '',
+  establishment_name: '',
+  product_type: 'Food',
+  primary_activity: 'Manufacturer',
+  specific_activities: '',
+  product_line: '',
   products: '',
-  ltoNumber: '',
-  ltoIssuanceDate: '',
-  expiryDate: '',
+  lto_number: '',
+  lto_issuance_date: '',
+  expiry: '',
   address: '',
   province: 'Baguio',
-  cityMunicipality: 'Session Road District',
+  city_municipality: 'Session Road District',
   owner: '',
-  contactNumber: '',
-  emailAddress: '',
-  lastInspection: '',
-  statusOfLastInspection: 'Completed',
+  contact_number: '',
+  email_address: '',
+  last_inspection: '',
+  status_last_inspection: 'Completed',
   frequency: 'Annually',
-  nextInspection: '',
-  typeInspection: 'Routine Inspection',
+  next_inspection: '',
+  type_inspection: 'Routine Inspection',
   inspector: '',
   status: 'Active',
 });
@@ -69,60 +70,62 @@ const errors = reactive<FormErrors>({});
 function resetForm() {
   if (props.establishment) {
     // Populate with existing data
-    form.establishmentName = props.establishment.establishmentName || '';
-    form.productType = props.establishment.productType || 'Food';
-    form.primaryActivity = props.establishment.primaryActivity || 'Manufacturer';
-    form.specificActivities = props.establishment.specificActivities || '';
-    form.productLine = props.establishment.productLine || '';
+    form.establishment_name = props.establishment.establishment_name || '';
+    form.product_type = props.establishment.product_type || '';
+    form.primary_activity = props.establishment.primary_activity || 'Manufacturer';
+    form.specific_activities = props.establishment.specific_activities || '';
+    form.product_line = props.establishment.product_line || '';
     form.products = props.establishment.products || '';
-    form.ltoNumber = props.establishment.ltoNumber || '';
-    form.ltoIssuanceDate = props.establishment.ltoIssuanceDate || '';
-    form.expiryDate = props.establishment.expiryDate || '';
+    form.lto_number = props.establishment.lto_number || '';
+    form.lto_issuance_date = props.establishment.lto_issuance_date || '';
+    form.expiry = props.establishment.expiry || '';
     form.address = props.establishment.address || '';
     form.province = props.establishment.province || 'Baguio';
-    form.cityMunicipality = props.establishment.cityMunicipality || 'Session Road District';
+    form.city_municipality = props.establishment.city_municipality || 'Session Road District';
     form.owner = props.establishment.owner || '';
-    form.contactNumber = props.establishment.contactNumber || '';
-    form.emailAddress = props.establishment.emailAddress || '';
-    form.lastInspection = props.establishment.lastInspection || '';
-    form.statusOfLastInspection = props.establishment.statusOfLastInspection || 'Completed';
+    form.contact_number = props.establishment.contact_number || '';
+    form.email_address = props.establishment.email_address || '';
+    form.last_inspection = props.establishment.last_inspection || '';
+    form.status_last_inspection = props.establishment.status_last_inspection || 'Completed';
     form.frequency = props.establishment.frequency || 'Annually';
-    form.nextInspection = props.establishment.nextInspection || '';
-    form.typeInspection = props.establishment.typeInspection || 'Routine Inspection';
+    form.next_inspection = props.establishment.next_inspection || '';
+    form.type_inspection = props.establishment.type_inspection || 'Routine Inspection';
     form.inspector = props.establishment.inspector || '';
     form.status = props.establishment.status || 'Active';
   } else {
     // Reset to clean defaults
-    form.establishmentName = '';
-    form.productType = 'Food';
-    form.primaryActivity = 'Manufacturer';
-    form.specificActivities = '';
-    form.productLine = '';
+    form.establishment_name = '';
+    form.product_type = 'Food';
+    form.primary_activity = 'Manufacturer';
+    form.specific_activities = '';
+    form.product_line = '';
     form.products = '';
-    form.ltoNumber = '';
-    form.ltoIssuanceDate = new Date().toISOString().split('T')[0];
+    form.lto_number = '';
+    form.lto_issuance_date = new Date().toISOString().split('T')[0];
     const exp = new Date();
     exp.setFullYear(exp.getFullYear() + 3);
-    form.expiryDate = exp.toISOString().split('T')[0];
+    form.expiry = exp.toISOString().split('T')[0];
     form.address = '';
     form.province = 'Baguio';
-    form.cityMunicipality = 'Session Road District';
+    form.city_municipality = 'Session Road District';
     form.owner = '';
-    form.contactNumber = '';
-    form.emailAddress = '';
-    form.lastInspection = '';
-    form.statusOfLastInspection = 'Completed';
+    form.contact_number = '';
+    form.email_address = '';
+    form.last_inspection = '';
+    form.status_last_inspection = 'Completed';
     form.frequency = 'Annually';
     const nxt = new Date();
     nxt.setFullYear(nxt.getFullYear() + 1);
-    form.nextInspection = nxt.toISOString().split('T')[0];
-    form.typeInspection = 'Routine Inspection';
+    form.next_inspection = nxt.toISOString().split('T')[0];
+    form.type_inspection = 'Routine Inspection';
     form.inspector = '';
     form.status = 'Active';
   }
 
   // Clear errors
-  Object.keys(errors).forEach((k) => delete errors[k]);
+  Object.keys(errors).forEach((key) => {
+    delete errors[key];
+  });
 }
 
 watch(
@@ -142,8 +145,8 @@ watch(
   (newProvince) => {
     if (newProvince && PHILIPPINE_LOCATIONS[newProvince]) {
       const cities = PHILIPPINE_LOCATIONS[newProvince];
-      if (!cities.includes(form.cityMunicipality)) {
-        form.cityMunicipality = cities[0] || '';
+      if (!cities.includes(form.city_municipality || '')) {
+        form.city_municipality = cities[0] || '';
       }
     }
   }
@@ -154,56 +157,56 @@ function validateField(field: keyof EstablishmentFormData): boolean {
   errors[field] = undefined;
 
   switch (field) {
-    case 'establishmentName':
-      if (!form.establishmentName.trim()) {
-        errors.establishmentName = 'Establishment name is required';
+    case 'establishment_name':
+      if (!form.establishment_name.trim()) {
+        errors.establishment_name = 'Establishment name is required';
         isValid = false;
       }
       break;
 
-    case 'productType':
-      if (!form.productType) {
-        errors.productType = 'Please select a product type';
+    case 'product_type':
+      if (!form.product_type) {
+        errors.product_type = 'Please select a product type';
         isValid = false;
       }
       break;
 
-    case 'primaryActivity':
-      if (!form.primaryActivity) {
-        errors.primaryActivity = 'Primary activity is required';
+    case 'primary_activity':
+      if (!form.primary_activity) {
+        errors.primary_activity = 'Primary activity is required';
         isValid = false;
       }
       break;
 
-    case 'ltoNumber':
-      if (!form.ltoNumber.trim()) {
-        errors.ltoNumber = 'LTO Number is required';
+    case 'lto_number':
+      if (!form.lto_number?.trim()) {
+        errors.lto_number = 'LTO Number is required';
         isValid = false;
-      } else if (form.ltoNumber.trim().length < 6) {
-        errors.ltoNumber = 'Please enter a valid LTO number (e.g. FDA-CDRR-2024-00123)';
-        isValid = false;
-      }
-      break;
-
-    case 'ltoIssuanceDate':
-      if (!form.ltoIssuanceDate) {
-        errors.ltoIssuanceDate = 'Issuance date is required';
+      } else if (form.lto_number.trim().length < 6) {
+        errors.lto_number = 'Please enter a valid LTO number (e.g. FDA-CDRR-2024-00123)';
         isValid = false;
       }
       break;
 
-    case 'expiryDate':
-      if (!form.expiryDate) {
-        errors.expiryDate = 'Expiry date is required';
+    case 'lto_issuance_date':
+      if (!form.lto_issuance_date) {
+        errors.lto_issuance_date = 'Issuance date is required';
         isValid = false;
-      } else if (form.ltoIssuanceDate && new Date(form.expiryDate) < new Date(form.ltoIssuanceDate)) {
-        errors.expiryDate = 'Expiry date cannot be earlier than issuance date';
+      }
+      break;
+
+    case 'expiry':
+      if (!form.expiry) {
+        errors.expiry = 'Expiry date is required';
+        isValid = false;
+      } else if (form.lto_issuance_date && new Date(form.expiry) < new Date(form.lto_issuance_date)) {
+        errors.expiry = 'Expiry date cannot be earlier than issuance date';
         isValid = false;
       }
       break;
 
     case 'address':
-      if (!form.address.trim()) {
+      if (!form.address?.trim()) {
         errors.address = 'Street address is required';
         isValid = false;
       }
@@ -216,36 +219,36 @@ function validateField(field: keyof EstablishmentFormData): boolean {
       }
       break;
 
-    case 'cityMunicipality':
-      if (!form.cityMunicipality) {
-        errors.cityMunicipality = 'City or municipality is required';
+    case 'city_municipality':
+      if (!form.city_municipality) {
+        errors.city_municipality = 'City or municipality is required';
         isValid = false;
       }
       break;
 
     case 'owner':
-      if (!form.owner.trim()) {
+      if (!form.owner?.trim()) {
         errors.owner = 'Owner name is required';
         isValid = false;
       }
       break;
 
-    case 'contactNumber':
-      if (!form.contactNumber.trim()) {
-        errors.contactNumber = 'Contact number is required';
+    case 'contact_number':
+      if (!form.contact_number?.trim()) {
+        errors.contact_number = 'Contact number is required';
         isValid = false;
-      } else if (!/^[0-9+\s\-()]{7,20}$/.test(form.contactNumber.trim())) {
-        errors.contactNumber = 'Enter a valid phone number (e.g. +63 917 123 4567)';
+      } else if (!/^[0-9+\s\-()]{7,20}$/.test(form.contact_number.trim())) {
+        errors.contact_number = 'Enter a valid phone number (e.g. +63 917 123 4567)';
         isValid = false;
       }
       break;
 
-    case 'emailAddress':
-      if (!form.emailAddress.trim()) {
-        errors.emailAddress = 'Email address is required';
+    case 'email_address':
+      if (!form.email_address?.trim()) {
+        errors.email_address = 'Email address is required';
         isValid = false;
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.emailAddress.trim())) {
-        errors.emailAddress = 'Please enter a valid email address';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email_address.trim())) {
+        errors.email_address = 'Please enter a valid email address';
         isValid = false;
       }
       break;
@@ -263,18 +266,18 @@ function validateField(field: keyof EstablishmentFormData): boolean {
 
 function validateAll(): boolean {
   const fieldsToValidate: (keyof EstablishmentFormData)[] = [
-    'establishmentName',
-    'productType',
-    'primaryActivity',
-    'ltoNumber',
-    'ltoIssuanceDate',
-    'expiryDate',
+    'establishment_name',
+    'product_type',
+    'primary_activity',
+    'lto_number',
+    'lto_issuance_date',
+    'expiry',
     'address',
     'province',
-    'cityMunicipality',
+    'city_municipality',
     'owner',
-    'contactNumber',
-    'emailAddress',
+    'contact_number',
+    'email_address',
     'status',
   ];
 
@@ -323,36 +326,43 @@ onUnmounted(() => {
       <Transition name="modal-panel">
         <div
           v-if="isOpen"
-          class="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-[#dbe6de] overflow-hidden flex flex-col max-h-[90vh]"
+          class="relative w-full max-w-4xl bg-[#F8F6EE] rounded-2xl shadow-2xl border border-[#DCE4DE] overflow-hidden flex flex-col max-h-[92vh]"
         >
-          <!-- Fixed Header -->
-          <div class="px-6 py-4 border-b border-[#e5eee7] bg-[#f8faf8] flex items-center justify-between shrink-0">
-            <div>
-              <h2 class="text-lg font-bold text-[#172a1f]">
-                {{ establishment ? 'Edit Establishment' : 'Add Establishment' }}
-              </h2>
-              <p class="text-xs text-[#5e7768] mt-0.5">
-                {{ establishment ? 'Update establishment information.' : 'Enter the establishment information below.' }}
-              </p>
+          <!-- Header -->
+          <div class="px-7 py-5.5 bg-[#FFFEFB] border-b border-[#EDE8DD] flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3.5">
+              <div class="w-10 h-10 rounded-xl bg-[#E6F0EA] text-[#1D4A36] flex items-center justify-center font-bold border border-[#D5E4DA] shrink-0">
+                <Landmark class="w-5 h-5 stroke-[1.8]" />
+              </div>
+              <div>
+                <h2 class="text-xl sm:text-2xl font-bold text-[#112419] leading-tight font-serif tracking-tight">
+                  {{ establishment ? 'Edit establishment' : 'Add new establishment' }}
+                </h2>
+                <p class="text-xs sm:text-[13px] text-[#55695D] mt-0.5 font-normal">
+                  {{ establishment ? 'Update establishment registration and license records.' : 'Enter complete regulatory information for the registry.' }}
+                </p>
+              </div>
             </div>
             <button
               type="button"
               @click="emit('close')"
-              class="text-[#7c9586] hover:text-[#172a1f] p-1.5 rounded-lg hover:bg-[#eaf2ec] transition-colors cursor-pointer"
+              class="w-9 h-9 rounded-full border border-[#D0DAD3] text-[#4A5D52] hover:bg-[#EAEFEA] hover:text-[#112419] flex items-center justify-center transition-colors cursor-pointer shrink-0"
               title="Close modal (Esc)"
             >
-              <X class="w-5 h-5" />
+              <X class="w-4 h-4 stroke-[2]" />
             </button>
           </div>
 
-          <!-- Section Navigation Tabs -->
-          <div class="px-6 pt-3 pb-2 border-b border-[#eef4f0] bg-white flex items-center gap-1.5 overflow-x-auto text-xs shrink-0">
+          <!-- Section Tabs -->
+          <div class="px-7 border-b border-[#EDE8DD] bg-[#FFFEFB] overflow-x-auto flex gap-2 pt-1 text-xs shrink-0">
             <button
               type="button"
               @click="activeTab = 'all'"
               :class="[
-                'px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0',
-                activeTab === 'all' ? 'bg-[#366649] text-white shadow-2xs' : 'text-[#486353] hover:bg-[#edf5ef]'
+                'px-3.5 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer',
+                activeTab === 'all'
+                  ? 'border-[#204F38] text-[#1B432F] font-bold'
+                  : 'border-transparent text-[#627A6C] hover:text-[#182C21]'
               ]"
             >
               All Sections
@@ -361,105 +371,110 @@ onUnmounted(() => {
               type="button"
               @click="activeTab = 'establishment'"
               :class="[
-                'px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 flex items-center gap-1.5',
-                activeTab === 'establishment' ? 'bg-[#366649] text-white shadow-2xs' : 'text-[#486353] hover:bg-[#edf5ef]'
+                'px-3.5 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer',
+                activeTab === 'establishment'
+                  ? 'border-[#204F38] text-[#1B432F] font-bold'
+                  : 'border-transparent text-[#627A6C] hover:text-[#182C21]'
               ]"
             >
-              <Building2 class="w-3.5 h-3.5" />
               1. Establishment
             </button>
             <button
               type="button"
               @click="activeTab = 'license'"
               :class="[
-                'px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 flex items-center gap-1.5',
-                activeTab === 'license' ? 'bg-[#366649] text-white shadow-2xs' : 'text-[#486353] hover:bg-[#edf5ef]'
+                'px-3.5 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer',
+                activeTab === 'license'
+                  ? 'border-[#204F38] text-[#1B432F] font-bold'
+                  : 'border-transparent text-[#627A6C] hover:text-[#182C21]'
               ]"
             >
-              <FileBadge2 class="w-3.5 h-3.5" />
               2. License
             </button>
             <button
               type="button"
               @click="activeTab = 'location'"
               :class="[
-                'px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 flex items-center gap-1.5',
-                activeTab === 'location' ? 'bg-[#366649] text-white shadow-2xs' : 'text-[#486353] hover:bg-[#edf5ef]'
+                'px-3.5 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer',
+                activeTab === 'location'
+                  ? 'border-[#204F38] text-[#1B432F] font-bold'
+                  : 'border-transparent text-[#627A6C] hover:text-[#182C21]'
               ]"
             >
-              <MapPin class="w-3.5 h-3.5" />
               3. Location
             </button>
             <button
               type="button"
               @click="activeTab = 'contact'"
               :class="[
-                'px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 flex items-center gap-1.5',
-                activeTab === 'contact' ? 'bg-[#366649] text-white shadow-2xs' : 'text-[#486353] hover:bg-[#edf5ef]'
+                'px-3.5 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer',
+                activeTab === 'contact'
+                  ? 'border-[#204F38] text-[#1B432F] font-bold'
+                  : 'border-transparent text-[#627A6C] hover:text-[#182C21]'
               ]"
             >
-              <UserCheck class="w-3.5 h-3.5" />
               4. Contact
             </button>
             <button
               type="button"
               @click="activeTab = 'inspection'"
               :class="[
-                'px-3 py-1.5 rounded-lg font-semibold transition-colors shrink-0 flex items-center gap-1.5',
-                activeTab === 'inspection' ? 'bg-[#366649] text-white shadow-2xs' : 'text-[#486353] hover:bg-[#edf5ef]'
+                'px-3.5 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer',
+                activeTab === 'inspection'
+                  ? 'border-[#204F38] text-[#1B432F] font-bold'
+                  : 'border-transparent text-[#627A6C] hover:text-[#182C21]'
               ]"
             >
-              <ClipboardCheck class="w-3.5 h-3.5" />
               5. Inspection
             </button>
           </div>
 
-          <!-- Scrollable Form Body -->
-          <div class="px-6 py-5 overflow-y-auto flex-1 space-y-6">
+          <!-- Form Body -->
+          <div class="px-6 sm:px-7 py-6 overflow-y-auto flex-1 space-y-6 bg-[#F8F6EE]">
             <!-- SECTION 1: Establishment Information -->
             <section
               v-show="activeTab === 'all' || activeTab === 'establishment'"
-              class="bg-[#f9fbf9] rounded-xl p-4 sm:p-5 border border-[#e3ede6] space-y-4"
+              class="bg-[#FFFEFB] rounded-2xl p-6 sm:p-7 border border-[#E8E3D8] shadow-xs space-y-5"
             >
-              <div class="flex items-center gap-2 border-b border-[#e4ede7] pb-2.5">
-                <Building2 class="w-4 h-4 text-[#366649]" />
-                <h3 class="text-xs font-bold text-[#244331] uppercase tracking-wider">
+              <div class="flex items-center gap-2.5 border-b border-[#ECE7DC] pb-3.5">
+                <Landmark class="w-4 h-4 text-[#A88C59] shrink-0 stroke-[2]" />
+                <h3 class="text-xs font-bold text-[#1D4A36] uppercase tracking-wider font-sans">
                   Section 1 — Establishment Information
                 </h3>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                 <!-- Establishment Name -->
                 <div class="sm:col-span-2 lg:col-span-3">
-                  <label for="form-name" class="block text-xs font-bold text-[#264433] mb-1">
-                    Establishment Name <span class="text-rose-500">*</span>
+                  <label for="form-name" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Establishment name <span class="text-[#C94242]">*</span>
                   </label>
                   <input
                     id="form-name"
                     type="text"
-                    v-model="form.establishmentName"
-                    @blur="validateField('establishmentName')"
+                    v-model="form.establishment_name"
+                    @blur="validateField('establishment_name')"
                     placeholder="e.g. Benguet Highland Harvest & Agro-Processing Corp."
                     :class="[
-                      'w-full px-3.5 py-2 text-xs sm:text-sm bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 transition-colors',
-                      errors.establishmentName ? 'border-rose-400 focus:border-rose-500' : 'border-[#d7e3db] focus:border-[#366649]'
+                      'w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150',
+                      errors.establishment_name ? 'border-rose-400 focus:border-rose-500' : 'border-[#E2DDD0] focus:border-[#1D4A36]'
                     ]"
                   />
-                  <p v-if="errors.establishmentName" class="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
-                    <AlertCircle class="w-3 h-3" /> {{ errors.establishmentName }}
+                  <p v-if="errors.establishment_name" class="text-rose-600 text-[11px] mt-1.5 flex items-center gap-1">
+                    <AlertCircle class="w-3 h-3" /> {{ errors.establishment_name }}
                   </p>
                 </div>
 
                 <!-- Product Type -->
                 <div>
-                  <label for="form-product-type" class="block text-xs font-bold text-[#264433] mb-1">
-                    Product Type <span class="text-rose-500">*</span>
+                  <label for="form-product-type" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Product type <span class="text-[#C94242]">*</span>
                   </label>
                   <select
                     id="form-product-type"
-                    v-model="form.productType"
-                    @blur="validateField('productType')"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    v-model="form.product_type"
+                    @blur="validateField('product_type')"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150 cursor-pointer"
                   >
                     <option v-for="type in PRODUCT_TYPES" :key="type" :value="type">
                       {{ type }}
@@ -469,14 +484,14 @@ onUnmounted(() => {
 
                 <!-- Primary Activity -->
                 <div>
-                  <label for="form-primary-activity" class="block text-xs font-bold text-[#264433] mb-1">
-                    Primary Activity <span class="text-rose-500">*</span>
+                  <label for="form-primary-activity" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Primary activity <span class="text-[#C94242]">*</span>
                   </label>
                   <select
                     id="form-primary-activity"
-                    v-model="form.primaryActivity"
-                    @blur="validateField('primaryActivity')"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    v-model="form.primary_activity"
+                    @blur="validateField('primary_activity')"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150 cursor-pointer"
                   >
                     <option v-for="act in PRIMARY_ACTIVITIES" :key="act" :value="act">
                       {{ act }}
@@ -484,37 +499,37 @@ onUnmounted(() => {
                   </select>
                 </div>
 
-                <!-- Specific Activity/s -->
+                <!-- Specific Activities -->
                 <div>
-                  <label for="form-specific-activities" class="block text-xs font-bold text-[#264433] mb-1">
-                    Specific Activity/s
+                  <label for="form-specific-activities" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Specific activities
                   </label>
                   <input
                     id="form-specific-activities"
                     type="text"
-                    v-model="form.specificActivities"
+                    v-model="form.specific_activities"
                     placeholder="e.g. Toll Manufacturer, Repacker"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150"
                   />
                 </div>
 
                 <!-- Product Line -->
                 <div class="sm:col-span-2 lg:col-span-1">
-                  <label for="form-product-line" class="block text-xs font-bold text-[#264433] mb-1">
-                    Product Line
+                  <label for="form-product-line" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Product line
                   </label>
                   <input
                     id="form-product-line"
                     type="text"
-                    v-model="form.productLine"
-                    placeholder="e.g. Preserved Highland Vegetables & Berry Conserves"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    v-model="form.product_line"
+                    placeholder="e.g. Preserved Highland Vegetables"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150"
                   />
                 </div>
 
                 <!-- Products -->
                 <div class="sm:col-span-2 lg:col-span-2">
-                  <label for="form-products" class="block text-xs font-bold text-[#264433] mb-1">
+                  <label for="form-products" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
                     Products
                   </label>
                   <input
@@ -522,7 +537,7 @@ onUnmounted(() => {
                     type="text"
                     v-model="form.products"
                     placeholder="e.g. Preserved Strawberries in Syrup, Carrot Nectar"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150"
                   />
                 </div>
               </div>
@@ -531,74 +546,74 @@ onUnmounted(() => {
             <!-- SECTION 2: License Information -->
             <section
               v-show="activeTab === 'all' || activeTab === 'license'"
-              class="bg-[#f9fbf9] rounded-xl p-4 sm:p-5 border border-[#e3ede6] space-y-4"
+              class="bg-[#FFFEFB] rounded-2xl p-6 sm:p-7 border border-[#E8E3D8] shadow-xs space-y-5"
             >
-              <div class="flex items-center gap-2 border-b border-[#e4ede7] pb-2.5">
-                <FileBadge2 class="w-4 h-4 text-[#366649]" />
-                <h3 class="text-xs font-bold text-[#244331] uppercase tracking-wider">
+              <div class="flex items-center gap-2.5 border-b border-[#ECE7DC] pb-3.5">
+                <FileBadge2 class="w-4 h-4 text-[#A88C59] shrink-0 stroke-[2]" />
+                <h3 class="text-xs font-bold text-[#1D4A36] uppercase tracking-wider font-sans">
                   Section 2 — License Information
                 </h3>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
                 <!-- LTO Number -->
                 <div>
-                  <label for="form-lto-number" class="block text-xs font-bold text-[#264433] mb-1">
-                    LTO Number <span class="text-rose-500">*</span>
+                  <label for="form-lto-number" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    LTO number <span class="text-[#C94242]">*</span>
                   </label>
                   <input
                     id="form-lto-number"
                     type="text"
-                    v-model="form.ltoNumber"
-                    @blur="validateField('ltoNumber')"
+                    v-model="form.lto_number"
+                    @blur="validateField('lto_number')"
                     placeholder="e.g. FDA-CFRR-2024-00123"
                     :class="[
-                      'w-full px-3 py-2 text-xs sm:text-sm font-mono bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 transition-colors',
-                      errors.ltoNumber ? 'border-rose-400 focus:border-rose-500' : 'border-[#d7e3db] focus:border-[#366649]'
+                      'w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] font-mono bg-[#F5F4EC] border rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150',
+                      errors.lto_number ? 'border-rose-400 focus:border-rose-500' : 'border-[#E2DDD0] focus:border-[#1D4A36]'
                     ]"
                   />
-                  <p v-if="errors.ltoNumber" class="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
-                    <AlertCircle class="w-3 h-3" /> {{ errors.ltoNumber }}
+                  <p v-if="errors.lto_number" class="text-rose-600 text-[11px] mt-1.5 flex items-center gap-1">
+                    <AlertCircle class="w-3 h-3" /> {{ errors.lto_number }}
                   </p>
                 </div>
 
                 <!-- LTO Issuance Date -->
                 <div>
-                  <label for="form-lto-issuance" class="block text-xs font-bold text-[#264433] mb-1">
-                    LTO Issuance Date <span class="text-rose-500">*</span>
+                  <label for="form-lto-issuance" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    LTO issuance date <span class="text-[#C94242]">*</span>
                   </label>
                   <input
                     id="form-lto-issuance"
                     type="date"
-                    v-model="form.ltoIssuanceDate"
-                    @blur="validateField('ltoIssuanceDate')"
+                    v-model="form.lto_issuance_date"
+                    @blur="validateField('lto_issuance_date')"
                     :class="[
-                      'w-full px-3 py-2 text-xs sm:text-sm bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 transition-colors',
-                      errors.ltoIssuanceDate ? 'border-rose-400 focus:border-rose-500' : 'border-[#d7e3db] focus:border-[#366649]'
+                      'w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150',
+                      errors.lto_issuance_date ? 'border-rose-400 focus:border-rose-500' : 'border-[#E2DDD0] focus:border-[#1D4A36]'
                     ]"
                   />
-                  <p v-if="errors.ltoIssuanceDate" class="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
-                    <AlertCircle class="w-3 h-3" /> {{ errors.ltoIssuanceDate }}
+                  <p v-if="errors.lto_issuance_date" class="text-rose-600 text-[11px] mt-1.5 flex items-center gap-1">
+                    <AlertCircle class="w-3 h-3" /> {{ errors.lto_issuance_date }}
                   </p>
                 </div>
 
                 <!-- Expiry Date -->
                 <div>
-                  <label for="form-expiry-date" class="block text-xs font-bold text-[#264433] mb-1">
-                    Expiry <span class="text-rose-500">*</span>
+                  <label for="form-expiry-date" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Expiry <span class="text-[#C94242]">*</span>
                   </label>
                   <input
                     id="form-expiry-date"
                     type="date"
-                    v-model="form.expiryDate"
-                    @blur="validateField('expiryDate')"
+                    v-model="form.expiry"
+                    @blur="validateField('expiry')"
                     :class="[
-                      'w-full px-3 py-2 text-xs sm:text-sm bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 transition-colors',
-                      errors.expiryDate ? 'border-rose-400 focus:border-rose-500' : 'border-[#d7e3db] focus:border-[#366649]'
+                      'w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150',
+                      errors.expiry ? 'border-rose-400 focus:border-rose-500' : 'border-[#E2DDD0] focus:border-[#1D4A36]'
                     ]"
                   />
-                  <p v-if="errors.expiryDate" class="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
-                    <AlertCircle class="w-3 h-3" /> {{ errors.expiryDate }}
+                  <p v-if="errors.expiry" class="text-rose-600 text-[11px] mt-1.5 flex items-center gap-1">
+                    <AlertCircle class="w-3 h-3" /> {{ errors.expiry }}
                   </p>
                 </div>
               </div>
@@ -607,20 +622,20 @@ onUnmounted(() => {
             <!-- SECTION 3: Location (Strictly CAR Provinces) -->
             <section
               v-show="activeTab === 'all' || activeTab === 'location'"
-              class="bg-[#f9fbf9] rounded-xl p-4 sm:p-5 border border-[#e3ede6] space-y-4"
+              class="bg-[#FFFEFB] rounded-2xl p-6 sm:p-7 border border-[#E8E3D8] shadow-xs space-y-5"
             >
-              <div class="flex items-center gap-2 border-b border-[#e4ede7] pb-2.5">
-                <MapPin class="w-4 h-4 text-[#366649]" />
-                <h3 class="text-xs font-bold text-[#244331] uppercase tracking-wider">
+              <div class="flex items-center gap-2.5 border-b border-[#ECE7DC] pb-3.5">
+                <MapPin class="w-4 h-4 text-[#A88C59] shrink-0 stroke-[2]" />
+                <h3 class="text-xs font-bold text-[#1D4A36] uppercase tracking-wider font-sans">
                   Section 3 — Location
                 </h3>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
                 <!-- Address -->
                 <div class="sm:col-span-3">
-                  <label for="form-address" class="block text-xs font-bold text-[#264433] mb-1">
-                    Address <span class="text-rose-500">*</span>
+                  <label for="form-address" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Address <span class="text-[#C94242]">*</span>
                   </label>
                   <input
                     id="form-address"
@@ -629,25 +644,25 @@ onUnmounted(() => {
                     @blur="validateField('address')"
                     placeholder="e.g. Km 5 Strawberry Farm Road, Betag"
                     :class="[
-                      'w-full px-3 py-2 text-xs sm:text-sm bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 transition-colors',
-                      errors.address ? 'border-rose-400 focus:border-rose-500' : 'border-[#d7e3db] focus:border-[#366649]'
+                      'w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150',
+                      errors.address ? 'border-rose-400 focus:border-rose-500' : 'border-[#E2DDD0] focus:border-[#1D4A36]'
                     ]"
                   />
-                  <p v-if="errors.address" class="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
+                  <p v-if="errors.address" class="text-rose-600 text-[11px] mt-1.5 flex items-center gap-1">
                     <AlertCircle class="w-3 h-3" /> {{ errors.address }}
                   </p>
                 </div>
 
-                <!-- Province (Only the 7 from image 2) -->
+                <!-- Province -->
                 <div>
-                  <label for="form-province" class="block text-xs font-bold text-[#264433] mb-1">
-                    Province <span class="text-rose-500">*</span>
+                  <label for="form-province" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Province <span class="text-[#C94242]">*</span>
                   </label>
                   <select
                     id="form-province"
                     v-model="form.province"
                     @blur="validateField('province')"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150 cursor-pointer"
                   >
                     <option v-for="prov in provincesList" :key="prov" :value="prov">
                       {{ prov }}
@@ -657,16 +672,16 @@ onUnmounted(() => {
 
                 <!-- City or Municipality -->
                 <div class="sm:col-span-2">
-                  <label for="form-city" class="block text-xs font-bold text-[#264433] mb-1">
-                    City or Municipality <span class="text-rose-500">*</span>
+                  <label for="form-city" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    City / Municipality <span class="text-[#C94242]">*</span>
                   </label>
                   <select
                     id="form-city"
-                    v-model="form.cityMunicipality"
-                    @blur="validateField('cityMunicipality')"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    v-model="form.city_municipality"
+                    @blur="validateField('city_municipality')"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150 cursor-pointer"
                   >
-                    <option v-for="city in (PHILIPPINE_LOCATIONS[form.province] || [])" :key="city" :value="city">
+                    <option v-for="city in (PHILIPPINE_LOCATIONS[form.province || ''] || [])" :key="city" :value="city">
                       {{ city }}
                     </option>
                   </select>
@@ -677,20 +692,20 @@ onUnmounted(() => {
             <!-- SECTION 4: Owner & Contact -->
             <section
               v-show="activeTab === 'all' || activeTab === 'contact'"
-              class="bg-[#f9fbf9] rounded-xl p-4 sm:p-5 border border-[#e3ede6] space-y-4"
+              class="bg-[#FFFEFB] rounded-2xl p-6 sm:p-7 border border-[#E8E3D8] shadow-xs space-y-5"
             >
-              <div class="flex items-center gap-2 border-b border-[#e4ede7] pb-2.5">
-                <UserCheck class="w-4 h-4 text-[#366649]" />
-                <h3 class="text-xs font-bold text-[#244331] uppercase tracking-wider">
+              <div class="flex items-center gap-2.5 border-b border-[#ECE7DC] pb-3.5">
+                <UserCheck class="w-4 h-4 text-[#A88C59] shrink-0 stroke-[2]" />
+                <h3 class="text-xs font-bold text-[#1D4A36] uppercase tracking-wider font-sans">
                   Section 4 — Owner & Contact
                 </h3>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
                 <!-- Owner -->
                 <div>
-                  <label for="form-owner" class="block text-xs font-bold text-[#264433] mb-1">
-                    Owner <span class="text-rose-500">*</span>
+                  <label for="form-owner" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Owner <span class="text-[#C94242]">*</span>
                   </label>
                   <input
                     id="form-owner"
@@ -699,54 +714,54 @@ onUnmounted(() => {
                     @blur="validateField('owner')"
                     placeholder="e.g. Federico Tan Jr."
                     :class="[
-                      'w-full px-3 py-2 text-xs sm:text-sm bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 transition-colors',
-                      errors.owner ? 'border-rose-400 focus:border-rose-500' : 'border-[#d7e3db] focus:border-[#366649]'
+                      'w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150',
+                      errors.owner ? 'border-rose-400 focus:border-rose-500' : 'border-[#E2DDD0] focus:border-[#1D4A36]'
                     ]"
                   />
-                  <p v-if="errors.owner" class="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
+                  <p v-if="errors.owner" class="text-rose-600 text-[11px] mt-1.5 flex items-center gap-1">
                     <AlertCircle class="w-3 h-3" /> {{ errors.owner }}
                   </p>
                 </div>
 
                 <!-- Contact Number -->
                 <div>
-                  <label for="form-contact-number" class="block text-xs font-bold text-[#264433] mb-1">
-                    Contact Number <span class="text-rose-500">*</span>
+                  <label for="form-contact-number" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Contact number <span class="text-[#C94242]">*</span>
                   </label>
                   <input
                     id="form-contact-number"
                     type="text"
-                    v-model="form.contactNumber"
-                    @blur="validateField('contactNumber')"
+                    v-model="form.contact_number"
+                    @blur="validateField('contact_number')"
                     placeholder="e.g. +63 920 955 7712"
                     :class="[
-                      'w-full px-3 py-2 text-xs sm:text-sm bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 transition-colors',
-                      errors.contactNumber ? 'border-rose-400 focus:border-rose-500' : 'border-[#d7e3db] focus:border-[#366649]'
+                      'w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150',
+                      errors.contact_number ? 'border-rose-400 focus:border-rose-500' : 'border-[#E2DDD0] focus:border-[#1D4A36]'
                     ]"
                   />
-                  <p v-if="errors.contactNumber" class="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
-                    <AlertCircle class="w-3 h-3" /> {{ errors.contactNumber }}
+                  <p v-if="errors.contact_number" class="text-rose-600 text-[11px] mt-1.5 flex items-center gap-1">
+                    <AlertCircle class="w-3 h-3" /> {{ errors.contact_number }}
                   </p>
                 </div>
 
                 <!-- Email Address -->
                 <div>
-                  <label for="form-email" class="block text-xs font-bold text-[#264433] mb-1">
-                    Email Address <span class="text-rose-500">*</span>
+                  <label for="form-email" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Email address <span class="text-[#C94242]">*</span>
                   </label>
                   <input
                     id="form-email"
                     type="email"
-                    v-model="form.emailAddress"
-                    @blur="validateField('emailAddress')"
+                    v-model="form.email_address"
+                    @blur="validateField('email_address')"
                     placeholder="e.g. qa.canning@highlandharvest.ph"
                     :class="[
-                      'w-full px-3 py-2 text-xs sm:text-sm bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 transition-colors',
-                      errors.emailAddress ? 'border-rose-400 focus:border-rose-500' : 'border-[#d7e3db] focus:border-[#366649]'
+                      'w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150',
+                      errors.email_address ? 'border-rose-400 focus:border-rose-500' : 'border-[#E2DDD0] focus:border-[#1D4A36]'
                     ]"
                   />
-                  <p v-if="errors.emailAddress" class="text-rose-600 text-[11px] mt-1 flex items-center gap-1">
-                    <AlertCircle class="w-3 h-3" /> {{ errors.emailAddress }}
+                  <p v-if="errors.email_address" class="text-rose-600 text-[11px] mt-1.5 flex items-center gap-1">
+                    <AlertCircle class="w-3 h-3" /> {{ errors.email_address }}
                   </p>
                 </div>
               </div>
@@ -755,38 +770,38 @@ onUnmounted(() => {
             <!-- SECTION 5: Inspection Information & Status -->
             <section
               v-show="activeTab === 'all' || activeTab === 'inspection'"
-              class="bg-[#f9fbf9] rounded-xl p-4 sm:p-5 border border-[#e3ede6] space-y-4"
+              class="bg-[#FFFEFB] rounded-2xl p-6 sm:p-7 border border-[#E8E3D8] shadow-xs space-y-5"
             >
-              <div class="flex items-center gap-2 border-b border-[#e4ede7] pb-2.5">
-                <ClipboardCheck class="w-4 h-4 text-[#366649]" />
-                <h3 class="text-xs font-bold text-[#244331] uppercase tracking-wider">
+              <div class="flex items-center gap-2.5 border-b border-[#ECE7DC] pb-3.5">
+                <ClipboardCheck class="w-4 h-4 text-[#A88C59] shrink-0 stroke-[2]" />
+                <h3 class="text-xs font-bold text-[#1D4A36] uppercase tracking-wider font-sans">
                   Section 5 — Inspection Information & Status
                 </h3>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
                 <!-- Last Inspection -->
                 <div>
-                  <label for="form-last-inspection" class="block text-xs font-bold text-[#264433] mb-1">
-                    Last Inspection
+                  <label for="form-last-inspection" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Last inspection
                   </label>
                   <input
                     id="form-last-inspection"
                     type="date"
-                    v-model="form.lastInspection"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    v-model="form.last_inspection"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150"
                   />
                 </div>
 
                 <!-- Status of Last Inspection -->
                 <div>
-                  <label for="form-status-last-insp" class="block text-xs font-bold text-[#264433] mb-1">
-                    Status of Last Inspection
+                  <label for="form-status-last-insp" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Status of last inspection
                   </label>
                   <select
                     id="form-status-last-insp"
-                    v-model="form.statusOfLastInspection"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    v-model="form.status_last_inspection"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150 cursor-pointer"
                   >
                     <option v-for="st in INSPECTION_STATUSES" :key="st" :value="st">
                       {{ st }}
@@ -796,13 +811,13 @@ onUnmounted(() => {
 
                 <!-- Frequency -->
                 <div>
-                  <label for="form-frequency" class="block text-xs font-bold text-[#264433] mb-1">
+                  <label for="form-frequency" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
                     Frequency
                   </label>
                   <select
                     id="form-frequency"
                     v-model="form.frequency"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150 cursor-pointer"
                   >
                     <option v-for="freq in INSPECTION_FREQUENCIES" :key="freq" :value="freq">
                       {{ freq }}
@@ -812,26 +827,26 @@ onUnmounted(() => {
 
                 <!-- Next Inspection -->
                 <div>
-                  <label for="form-next-inspection" class="block text-xs font-bold text-[#264433] mb-1">
-                    Next Inspection
+                  <label for="form-next-inspection" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Next inspection
                   </label>
                   <input
                     id="form-next-inspection"
                     type="date"
-                    v-model="form.nextInspection"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    v-model="form.next_inspection"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150"
                   />
                 </div>
 
-                <!-- Type Inspection -->
+                <!-- Type of Inspection -->
                 <div class="sm:col-span-2">
-                  <label for="form-type-inspection" class="block text-xs font-bold text-[#264433] mb-1">
-                    Type Inspection
+                  <label for="form-type-inspection" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Type of inspection
                   </label>
                   <select
                     id="form-type-inspection"
-                    v-model="form.typeInspection"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    v-model="form.type_inspection"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150 cursor-pointer"
                   >
                     <option v-for="type in INSPECTION_TYPES" :key="type" :value="type">
                       {{ type }}
@@ -841,7 +856,7 @@ onUnmounted(() => {
 
                 <!-- Inspector -->
                 <div>
-                  <label for="form-inspector" class="block text-xs font-bold text-[#264433] mb-1">
+                  <label for="form-inspector" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
                     Inspector
                   </label>
                   <input
@@ -849,20 +864,20 @@ onUnmounted(() => {
                     type="text"
                     v-model="form.inspector"
                     placeholder="e.g. Dr. Maria Santos, RPh"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] placeholder:text-[#8E9F94] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150"
                   />
                 </div>
 
-                <!-- Establishment Status -->
+                <!-- Status -->
                 <div>
-                  <label for="form-establishment-status" class="block text-xs font-bold text-[#264433] mb-1">
-                    Establishment Status <span class="text-rose-500">*</span>
+                  <label for="form-establishment-status" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#3C4E43] mb-1.5 font-sans">
+                    Status <span class="text-[#C94242]">*</span>
                   </label>
                   <select
                     id="form-establishment-status"
                     v-model="form.status"
                     @blur="validateField('status')"
-                    class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-[#d7e3db] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
+                    class="w-full px-4 py-2.5 sm:py-3 text-xs sm:text-[13.5px] bg-[#F5F4EC] border border-[#E2DDD0] rounded-xl text-[#16291E] focus:outline-hidden focus:bg-[#FFFEFB] focus:border-[#1D4A36] focus:ring-2 focus:ring-[#1D4A36]/15 transition-all duration-150 cursor-pointer"
                   >
                     <option v-for="st in ESTABLISHMENT_STATUSES" :key="st" :value="st">
                       {{ st }}
@@ -874,20 +889,20 @@ onUnmounted(() => {
           </div>
 
           <!-- Fixed Footer -->
-          <div class="px-6 py-4 border-t border-[#e5eee7] bg-[#f8faf8] flex items-center justify-end gap-3 shrink-0">
+          <div class="px-6 py-4.5 sm:px-8 sm:py-5 border-t border-[#E8E3D8] bg-[#FFFEFB] flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"
               @click="emit('close')"
-              class="px-4 py-2.5 text-xs sm:text-sm font-semibold text-[#486353] bg-white border border-[#d7e3db] rounded-xl hover:bg-[#edf5ef] transition-colors cursor-pointer"
+              class="px-5 sm:px-6 py-2.5 rounded-xl border border-[#DCD6C8] bg-[#F5F4EC] hover:bg-[#EAE6D9] text-[#1C2E23] font-semibold text-xs sm:text-sm transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               @click="handleSubmit"
-              class="px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-[#366649] rounded-xl hover:bg-[#2b533a] shadow-sm transition-all duration-150 cursor-pointer active:scale-98"
+              class="px-6 sm:px-7 py-2.5 rounded-xl bg-[#204F38] hover:bg-[#173F2C] text-white font-semibold text-xs sm:text-sm shadow-sm hover:shadow transition-all duration-150 cursor-pointer active:scale-98"
             >
-              {{ establishment ? 'Save Changes' : 'Save Establishment' }}
+              {{ establishment ? 'Save changes' : 'Save establishment' }}
             </button>
           </div>
         </div>

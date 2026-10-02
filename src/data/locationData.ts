@@ -92,7 +92,7 @@ export const PHILIPPINE_LOCATIONS: ProvinceCityMap = {
 
 export const PRODUCT_TYPES = [
   'Food',
-  'Drugs',
+  'Drug',
   'Medical Devices',
   'Cosmetics',
   'Household/Urban Hazardous',

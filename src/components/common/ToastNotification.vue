@@ -30,10 +30,10 @@ const emit = defineEmits<{
         :key="toast.id"
         :class="[
           'pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-lg backdrop-blur-md transition-all',
-          toast.type === 'success' ? 'bg-white/95 border-emerald-200 text-slate-800 ring-1 ring-emerald-500/10' : '',
-          toast.type === 'error' ? 'bg-white/95 border-rose-200 text-slate-800 ring-1 ring-rose-500/10' : '',
-          toast.type === 'warning' ? 'bg-white/95 border-amber-200 text-slate-800 ring-1 ring-amber-500/10' : '',
-          toast.type === 'info' ? 'bg-white/95 border-blue-200 text-slate-800 ring-1 ring-blue-500/10' : '',
+          toast.type === 'success' ? 'bg-[#FFFEFB]/95 border-emerald-200 text-slate-800 ring-1 ring-emerald-500/10' : '',
+          toast.type === 'error' ? 'bg-[#FFFEFB]/95 border-rose-200 text-slate-800 ring-1 ring-rose-500/10' : '',
+          toast.type === 'warning' ? 'bg-[#FFFEFB]/95 border-amber-200 text-slate-800 ring-1 ring-amber-500/10' : '',
+          toast.type === 'info' ? 'bg-[#FFFEFB]/95 border-blue-200 text-slate-800 ring-1 ring-blue-500/10' : '',
         ]"
       >
         <!-- Icon -->

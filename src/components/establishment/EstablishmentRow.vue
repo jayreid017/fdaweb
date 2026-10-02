@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Establishment } from '../../types/establishment';
-import StatusBadge from '../common/StatusBadge.vue';
-import { Eye, Edit3, Trash2, Mail, Phone, MapPin } from 'lucide-vue-next';
+import { Eye, Pencil, Trash2, MapPin } from 'lucide-vue-next';
 
 const props = defineProps<{
   establishment: Establishment;
@@ -14,8 +13,14 @@ const emit = defineEmits<{
   (e: 'delete', item: Establishment): void;
 }>();
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '—';
+function val(v?: string | null): string {
+  if (v === null || v === undefined) return '—';
+  const str = String(v).trim();
+  return str.length > 0 ? str : '—';
+}
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr || !dateStr.trim()) return '—';
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
@@ -28,211 +33,147 @@ function formatDate(dateStr: string): string {
     return dateStr;
   }
 }
+
+const statusNormalized = (status?: string | null) => {
+  const s = status?.trim().toLowerCase();
+  if (s === 'active') return 'Active';
+  if (s === 'expired') return 'Expired';
+  if (s === 'suspended') return 'Suspended';
+  if (s === 'cancelled') return 'Cancelled';
+  return status || 'Active';
+};
+
+const isNonCompliant = (status?: string | null) => {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return s.includes('non') || s.includes('fail');
+};
 </script>
 
 <template>
-  <tr class="group hover:bg-[#f3f8f5] transition-colors duration-150 border-b border-[#edf3ee] text-xs text-[#203629]">
-    <!-- 1. No -->
-    <td class="px-3.5 py-3.5 text-center font-mono font-medium text-[#7a9182] w-12 shrink-0">
-      {{ index + 1 }}
+  <tr 
+    @click="emit('view', establishment)"
+    class="hover:bg-[#E8F0EA]/80 transition-colors duration-150 border-b border-[#edf3ee] text-xs text-[#203629] group cursor-pointer"
+  >
+    <!-- 0. Row Number (No) -->
+    <td class="w-12 px-3 py-4 text-center font-mono text-xs text-[#718579] font-medium select-none">
+      {{ index }}
     </td>
 
-    <!-- 2. Establishment Name -->
-    <td class="px-4 py-3.5 font-medium max-w-[240px]">
-      <div class="flex flex-col">
+    <!-- 1. Establishment name & Location -->
+    <td class="px-3.5 py-4 max-w-65 lg:max-w-xs xl:max-w-xs">
+      <div class="flex flex-col min-w-0">
         <span 
-          class="truncate font-bold text-[#172a1f] hover:text-[#28573a] cursor-pointer"
-          :title="establishment.establishmentName"
-          @click="emit('view', establishment)"
+          class="truncate font-semibold text-xs sm:text-[13px] text-[#111827] group-hover:text-[#1d4b35] transition-colors"
+          :title="establishment.establishment_name || '—'"
         >
-          {{ establishment.establishmentName }}
+          {{ val(establishment.establishment_name) }}
         </span>
-        <span class="flex items-center gap-1 text-[11px] text-[#698072] mt-0.5 truncate">
-          <MapPin class="w-3 h-3 shrink-0 text-[#8ea496]" />
-          {{ establishment.cityMunicipality }}, {{ establishment.province }}
-        </span>
+        <div 
+          v-if="establishment.city_municipality || establishment.province" 
+          class="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] font-normal mt-1 truncate"
+        >
+          <MapPin class="w-3.5 h-3.5 shrink-0 text-[#8fa093] stroke-[1.6]" />
+          <span class="truncate">
+            <template v-if="establishment.city_municipality && establishment.province">
+              {{ establishment.city_municipality }}, {{ establishment.province }}
+            </template>
+            <template v-else>
+              {{ establishment.city_municipality || establishment.province }}
+            </template>
+          </span>
+        </div>
       </div>
     </td>
 
-    <!-- 3. Product Type -->
-    <td class="px-4 py-3.5 whitespace-nowrap">
-      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#edf5ef] text-[#245437] border border-[#d6e8da]">
-        {{ establishment.productType }}
-      </span>
-    </td>
-
-    <!-- 4. Primary Activity -->
-    <td class="px-4 py-3.5 whitespace-nowrap font-medium text-[#1f382a]">
-      {{ establishment.primaryActivity }}
-    </td>
-
-    <!-- 5. Specific Activity/s -->
-    <td class="px-4 py-3.5 max-w-[200px]">
-      <span class="truncate block text-[#50695b]" :title="establishment.specificActivities || '—'">
-        {{ establishment.specificActivities || '—' }}
-      </span>
-    </td>
-
-    <!-- 6. Product Line -->
-    <td class="px-4 py-3.5 max-w-[200px]">
-      <span class="truncate block text-[#50695b]" :title="establishment.productLine || '—'">
-        {{ establishment.productLine || '—' }}
-      </span>
-    </td>
-
-    <!-- 7. Products -->
-    <td class="px-4 py-3.5 max-w-[220px]">
-      <span class="truncate block text-[#446250] font-mono text-[11px]" :title="establishment.products || '—'">
-        {{ establishment.products || '—' }}
-      </span>
-    </td>
-
-    <!-- 8. LTO Number -->
-    <td class="px-4 py-3.5 whitespace-nowrap font-mono text-[11px] font-semibold text-[#215736]">
-      <span class="bg-[#eaf4ed] px-2 py-0.5 rounded-md border border-[#cde5d3]">
-        {{ establishment.ltoNumber }}
-      </span>
-    </td>
-
-    <!-- 9. LTO Issuance Date -->
-    <td class="px-4 py-3.5 whitespace-nowrap text-[#536d5e]">
-      {{ formatDate(establishment.ltoIssuanceDate) }}
-    </td>
-
-    <!-- 10. Expiry -->
-    <td class="px-4 py-3.5 whitespace-nowrap">
-      <span :class="[
-        'font-medium',
-        new Date(establishment.expiryDate) < new Date() ? 'text-[#b91c1c] font-bold' : 'text-[#203629]'
-      ]">
-        {{ formatDate(establishment.expiryDate) }}
-      </span>
-    </td>
-
-    <!-- 11. Address -->
-    <td class="px-4 py-3.5 max-w-[220px]">
-      <span class="truncate block text-[#536d5e]" :title="establishment.address">
-        {{ establishment.address }}
-      </span>
-    </td>
-
-    <!-- 12. Province -->
-    <td class="px-4 py-3.5 whitespace-nowrap font-semibold text-[#1d3527]">
-      {{ establishment.province }}
-    </td>
-
-    <!-- 13. City or Municipality -->
-    <td class="px-4 py-3.5 whitespace-nowrap text-[#536d5e]">
-      {{ establishment.cityMunicipality }}
-    </td>
-
-    <!-- 14. Owner -->
-    <td class="px-4 py-3.5 whitespace-nowrap font-medium text-[#172a1f]">
-      {{ establishment.owner }}
-    </td>
-
-    <!-- 15. Contact Number -->
-    <td class="px-4 py-3.5 whitespace-nowrap text-[#536d5e] font-mono text-[11px]">
-      <a 
-        v-if="establishment.contactNumber" 
-        :href="`tel:${establishment.contactNumber}`" 
-        class="inline-flex items-center gap-1 hover:text-[#2b5e3e] hover:underline"
+    <!-- 2. Product type -->
+    <td class="px-3 py-4 whitespace-nowrap">
+      <span 
+        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#e3ede7] text-[#163828]"
       >
-        <Phone class="w-3 h-3 text-[#8ea496]" />
-        {{ establishment.contactNumber }}
-      </a>
-      <span v-else>—</span>
+        {{ establishment.product_type || 'Food' }}
+      </span>
     </td>
 
-    <!-- 16. Email Address -->
-    <td class="px-4 py-3.5 whitespace-nowrap text-[#536d5e] font-mono text-[11px]">
-      <a 
-        v-if="establishment.emailAddress" 
-        :href="`mailto:${establishment.emailAddress}`" 
-        class="inline-flex items-center gap-1 hover:text-[#2b5e3e] hover:underline"
-        :title="establishment.emailAddress"
+    <!-- 3. LTO number -->
+    <td class="px-3 py-4 whitespace-nowrap">
+      <span 
+        v-if="establishment.lto_number" 
+        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-mono font-medium text-[#254b38] bg-[#e2ece6]"
       >
-        <Mail class="w-3 h-3 text-[#8ea496]" />
-        {{ establishment.emailAddress }}
-      </a>
-      <span v-else>—</span>
+        {{ establishment.lto_number }}
+      </span>
+      <span v-else class="text-[#889d90]">—</span>
     </td>
 
-    <!-- 17. Last Inspection -->
-    <td class="px-4 py-3.5 whitespace-nowrap text-[#536d5e]">
-      {{ formatDate(establishment.lastInspection) }}
+    <!-- 4. Status of last inspection -->
+    <td class="px-3 py-4 whitespace-nowrap">
+      <span 
+        class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border"
+        :class="[
+          isNonCompliant(establishment.status_last_inspection)
+            ? 'bg-[#faeae8] text-[#b83d3b] border-[#f5d0cc]'
+            : 'bg-[#f4f3ed] text-[#4a554d] border-[#e5e2d8]'
+        ]"
+      >
+        <span 
+          class="w-1.5 h-1.5 rounded-full"
+          :class="isNonCompliant(establishment.status_last_inspection) ? 'bg-[#c94242]' : 'bg-[#59685d]'"
+        ></span>
+        <span>{{ establishment.status_last_inspection || 'Compliant' }}</span>
+      </span>
     </td>
 
-    <!-- 18. Status of Last Inspection -->
-    <td class="px-4 py-3.5 whitespace-nowrap">
-      <StatusBadge :status="establishment.statusOfLastInspection" type="inspection" />
+    <!-- 5. Next inspection -->
+    <td class="px-3 py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-[#111827]">
+      {{ formatDate(establishment.next_inspection) }}
     </td>
 
-    <!-- 19. Frequency -->
-    <td class="px-4 py-3.5 whitespace-nowrap text-[#536d5e]">
-      {{ establishment.frequency }}
+    <!-- 6. Status -->
+    <td class="px-3 py-4 whitespace-nowrap">
+      <span 
+        class="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold"
+        :class="statusNormalized(establishment.status) === 'Active' ? 'text-[#205c3b]' : 'text-[#c94242]'"
+      >
+        <span 
+          class="w-1.5 h-1.5 rounded-full"
+          :class="statusNormalized(establishment.status) === 'Active' ? 'bg-[#205c3b]' : 'bg-[#c94242]'"
+        ></span>
+        <span>{{ statusNormalized(establishment.status) }}</span>
+      </span>
     </td>
 
-    <!-- 20. Next Inspection -->
-    <td class="px-4 py-3.5 whitespace-nowrap font-medium text-[#20382a]">
-      {{ formatDate(establishment.nextInspection) }}
-    </td>
-
-    <!-- 21. Type Inspection -->
-    <td class="px-4 py-3.5 whitespace-nowrap text-[#536d5e]">
-      {{ establishment.typeInspection }}
-    </td>
-
-    <!-- 22. Inspector -->
-    <td class="px-4 py-3.5 whitespace-nowrap font-medium text-[#20382a]">
-      {{ establishment.inspector || '—' }}
-    </td>
-
-    <!-- 23. Status -->
-    <td class="px-4 py-3.5 whitespace-nowrap">
-      <StatusBadge :status="establishment.status" type="establishment" />
-    </td>
-
-    <!-- 24. Sticky Actions column -->
-    <td class="sticky right-0 px-3 py-3 whitespace-nowrap bg-white group-hover:bg-[#f3f8f5] transition-colors shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] border-l border-[#e2ebe4] text-right z-10">
-      <div class="inline-flex items-center justify-end gap-1">
+    <!-- 7. Actions -->
+    <td class="px-3.5 py-4 whitespace-nowrap text-right">
+      <div class="inline-flex items-center justify-end gap-3">
         <!-- View Button -->
         <button
           type="button"
-          @click="emit('view', establishment)"
-          class="relative group/btn p-1.5 rounded-lg text-[#556f60] hover:text-[#215736] hover:bg-[#e7f3ea] transition-colors cursor-pointer"
-          aria-label="View Details"
+          @click.stop="emit('view', establishment)"
+          class="text-[#889d91] hover:text-[#182c20] transition-colors cursor-pointer p-0.5"
+          title="View Details"
         >
-          <Eye class="w-4 h-4" />
-          <span class="absolute bottom-full mb-1.5 right-1/2 translate-x-1/2 hidden group-hover/btn:block bg-[#172a1f] text-white text-[10px] font-medium px-2 py-0.5 rounded shadow-md pointer-events-none whitespace-nowrap z-30">
-            View Details
-          </span>
+          <Eye class="w-4 h-4 stroke-[1.8]" />
         </button>
 
         <!-- Edit Button -->
         <button
           type="button"
-          @click="emit('edit', establishment)"
-          class="relative group/btn p-1.5 rounded-lg text-[#556f60] hover:text-[#215736] hover:bg-[#e7f3ea] transition-colors cursor-pointer"
-          aria-label="Edit Establishment"
+          @click.stop="emit('edit', establishment)"
+          class="text-[#889d91] hover:text-[#182c20] transition-colors cursor-pointer p-0.5"
+          title="Edit Record"
         >
-          <Edit3 class="w-4 h-4" />
-          <span class="absolute bottom-full mb-1.5 right-1/2 translate-x-1/2 hidden group-hover/btn:block bg-[#172a1f] text-white text-[10px] font-medium px-2 py-0.5 rounded shadow-md pointer-events-none whitespace-nowrap z-30">
-            Edit
-          </span>
+          <Pencil class="w-4 h-4 stroke-[1.8]" />
         </button>
 
         <!-- Delete Button -->
         <button
           type="button"
-          @click="emit('delete', establishment)"
-          class="relative group/btn p-1.5 rounded-lg text-[#859c8e] hover:text-[#b91c1c] hover:bg-[#fee2e2] transition-colors cursor-pointer"
-          aria-label="Delete Establishment"
+          @click.stop="emit('delete', establishment)"
+          class="text-[#889d91] hover:text-[#c94242] transition-colors cursor-pointer p-0.5"
+          title="Delete Record"
         >
-          <Trash2 class="w-4 h-4" />
-          <span class="absolute bottom-full mb-1.5 right-1/2 translate-x-1/2 hidden group-hover/btn:block bg-[#172a1f] text-white text-[10px] font-medium px-2 py-0.5 rounded shadow-md pointer-events-none whitespace-nowrap z-30">
-            Delete
-          </span>
+          <Trash2 class="w-4 h-4 stroke-[1.8]" />
         </button>
       </div>
     </td>

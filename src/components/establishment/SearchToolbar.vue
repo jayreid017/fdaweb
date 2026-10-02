@@ -7,7 +7,7 @@ import {
   ESTABLISHMENT_STATUSES, 
   INSPECTION_STATUSES 
 } from '../../data/locationData';
-import { Search, RotateCcw, X } from 'lucide-vue-next';
+import { Search, X, ChevronDown } from 'lucide-vue-next';
 
 const props = defineProps<{
   filters: FilterState;
@@ -37,11 +37,11 @@ const provincesList = computed(() => {
 const hasActiveFilters = computed(() => {
   return Boolean(
     props.filters.search ||
-    props.filters.productType ||
+    props.filters.product_type ||
     props.filters.province ||
-    props.filters.cityMunicipality ||
+    props.filters.city_municipality ||
     props.filters.status ||
-    props.filters.inspectionStatus
+    props.filters.status_last_inspection
   );
 });
 
@@ -53,8 +53,8 @@ function handleSearchChange(e: Event) {
 function handleSelectChange(key: keyof FilterState, value: string) {
   const updated = { ...props.filters, [key]: value };
   if (key === 'province' && value && PHILIPPINE_LOCATIONS[value]) {
-    if (!PHILIPPINE_LOCATIONS[value].includes(updated.cityMunicipality)) {
-      updated.cityMunicipality = '';
+    if (!PHILIPPINE_LOCATIONS[value].includes(updated.city_municipality)) {
+      updated.city_municipality = '';
     }
   }
   emit('update:filters', updated);
@@ -62,13 +62,13 @@ function handleSelectChange(key: keyof FilterState, value: string) {
 </script>
 
 <template>
-  <div class="bg-white rounded-2xl border border-[#e3ece5] shadow-xs p-4 sm:p-5 space-y-3.5">
+  <div class="bg-[#FFFEFB] rounded-2xl border border-[#E8E3D8] shadow-xs p-5 sm:p-6 space-y-4">
     <!-- Top Row: Search Input + Reset Filters Button -->
-    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
       <!-- Search Input -->
       <div class="relative flex-1">
-        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#71887a]">
-          <Search class="w-4 h-4" />
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#7A8E81]">
+          <Search class="w-4 h-4 stroke-[2]" />
         </div>
         <input
           id="establishment-search-input"
@@ -76,13 +76,13 @@ function handleSelectChange(key: keyof FilterState, value: string) {
           :value="filters.search"
           @input="handleSearchChange"
           placeholder="Search by name, LTO #, owner, contact, email, province, municipality, or inspector..."
-          class="w-full pl-10 pr-10 py-2.5 bg-[#f8faf8] hover:bg-[#f3f7f4] focus:bg-white text-xs sm:text-sm text-[#172a1f] placeholder:text-[#889d90] border border-[#dce6df] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-all duration-150"
+          class="w-full pl-11 pr-10 py-3 bg-[#F6F4EE] hover:bg-[#F0EEE6] focus:bg-[#FFFEFB] text-xs sm:text-[13.5px] text-[#162A1F] placeholder:text-[#8E9F94] border border-[#E2DDD0] rounded-2xl focus:outline-hidden focus:ring-2 focus:ring-[#1E4B35]/15 focus:border-[#1E4B35] transition-all duration-150"
         />
         <button
           v-if="filters.search"
           type="button"
           @click="handleSelectChange('search', '')"
-          class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#889d90] hover:text-[#172a1f]"
+          class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#889D90] hover:text-[#162A1F] cursor-pointer"
           title="Clear search"
         >
           <X class="w-4 h-4" />
@@ -95,107 +95,131 @@ function handleSelectChange(key: keyof FilterState, value: string) {
         @click="emit('reset')"
         :disabled="!hasActiveFilters"
         :class="[
-          'inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-xl border transition-all duration-150',
+          'inline-flex items-center justify-center px-6 py-3 text-xs sm:text-[13px] font-medium rounded-2xl border transition-all duration-150',
           hasActiveFilters
-            ? 'bg-[#f4f8f5] hover:bg-[#ebf4ed] text-[#28573b] border-[#cfe0d4] hover:border-[#b8d1bf] shadow-2xs cursor-pointer'
-            : 'bg-[#f9faf9] text-[#a4b5aa] border-[#e7eee9] cursor-not-allowed opacity-70',
+            ? 'bg-[#F6F4EE] hover:bg-[#EAE6DB] text-[#1E4B35] border-[#D4CEBF] shadow-2xs cursor-pointer font-semibold'
+            : 'bg-[#F6F4EE]/60 text-[#9DAEA3] border-[#E8E4D8] cursor-not-allowed opacity-80',
         ]"
       >
-        <RotateCcw class="w-3.5 h-3.5" />
-        <span>Reset Filters</span>
+        <span>Reset filters</span>
       </button>
     </div>
 
     <!-- Filter Selects Grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-1">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 pt-0.5">
       <!-- 1. Product Type -->
       <div>
-        <label for="filter-product-type" class="block text-[11px] font-bold text-[#556e5f] uppercase tracking-wider mb-1.5">
-          Product Type
+        <label for="filter-product-type" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#44564B] mb-1.5 font-sans">
+          Product type
         </label>
-        <select
-          id="filter-product-type"
-          :value="filters.productType"
-          @change="(e) => handleSelectChange('productType', (e.target as HTMLSelectElement).value)"
-          class="w-full py-2.5 px-3 text-xs bg-white text-[#1f3327] border border-[#dce6df] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
-        >
-          <option value="">All Product Types</option>
-          <option v-for="type in PRODUCT_TYPES" :key="type" :value="type">
-            {{ type }}
-          </option>
-        </select>
+        <div class="relative">
+          <select
+            id="filter-product-type"
+            :value="filters.product_type"
+            @change="(e) => handleSelectChange('product_type', (e.target as HTMLSelectElement).value)"
+            class="w-full py-2.5 sm:py-3 pl-4 pr-9 text-xs sm:text-[13px] bg-[#F6F4EE] hover:bg-[#F0EEE6] focus:bg-[#FFFEFB] text-[#162A1F] border border-[#E2DDD0] rounded-2xl focus:outline-hidden focus:ring-2 focus:ring-[#1E4B35]/15 focus:border-[#1E4B35] transition-all appearance-none cursor-pointer font-medium"
+          >
+            <option value="">All product types</option>
+            <option v-for="type in PRODUCT_TYPES" :key="type" :value="type">
+              {{ type }}
+            </option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#5A6F62]">
+            <ChevronDown class="w-4 h-4 stroke-[2]" />
+          </div>
+        </div>
       </div>
 
-      <!-- 2. Province (Only the 7 from image 2) -->
+      <!-- 2. Province -->
       <div>
-        <label for="filter-province" class="block text-[11px] font-bold text-[#556e5f] uppercase tracking-wider mb-1.5">
+        <label for="filter-province" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#44564B] mb-1.5 font-sans">
           Province
         </label>
-        <select
-          id="filter-province"
-          :value="filters.province"
-          @change="(e) => handleSelectChange('province', (e.target as HTMLSelectElement).value)"
-          class="w-full py-2.5 px-3 text-xs bg-white text-[#1f3327] border border-[#dce6df] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
-        >
-          <option value="">All Provinces</option>
-          <option v-for="province in provincesList" :key="province" :value="province">
-            {{ province }}
-          </option>
-        </select>
+        <div class="relative">
+          <select
+            id="filter-province"
+            :value="filters.province"
+            @change="(e) => handleSelectChange('province', (e.target as HTMLSelectElement).value)"
+            class="w-full py-2.5 sm:py-3 pl-4 pr-9 text-xs sm:text-[13px] bg-[#F6F4EE] hover:bg-[#F0EEE6] focus:bg-[#FFFEFB] text-[#162A1F] border border-[#E2DDD0] rounded-2xl focus:outline-hidden focus:ring-2 focus:ring-[#1E4B35]/15 focus:border-[#1E4B35] transition-all appearance-none cursor-pointer font-medium"
+          >
+            <option value="">All provinces</option>
+            <option v-for="province in provincesList" :key="province" :value="province">
+              {{ province }}
+            </option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#5A6F62]">
+            <ChevronDown class="w-4 h-4 stroke-[2]" />
+          </div>
+        </div>
       </div>
 
       <!-- 3. City / Municipality -->
       <div>
-        <label for="filter-city" class="block text-[11px] font-bold text-[#556e5f] uppercase tracking-wider mb-1.5">
-          City / Municipality
+        <label for="filter-city" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#44564B] mb-1.5 font-sans">
+          City / municipality
         </label>
-        <select
-          id="filter-city"
-          :value="filters.cityMunicipality"
-          @change="(e) => handleSelectChange('cityMunicipality', (e.target as HTMLSelectElement).value)"
-          class="w-full py-2.5 px-3 text-xs bg-white text-[#1f3327] border border-[#dce6df] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
-        >
-          <option value="">All Cities / Municipalities</option>
-          <option v-for="city in availableCities" :key="city" :value="city">
-            {{ city }}
-          </option>
-        </select>
+        <div class="relative">
+          <select
+            id="filter-city"
+            :value="filters.city_municipality"
+            @change="(e) => handleSelectChange('city_municipality', (e.target as HTMLSelectElement).value)"
+            class="w-full py-2.5 sm:py-3 pl-4 pr-9 text-xs sm:text-[13px] bg-[#F6F4EE] hover:bg-[#F0EEE6] focus:bg-[#FFFEFB] text-[#162A1F] border border-[#E2DDD0] rounded-2xl focus:outline-hidden focus:ring-2 focus:ring-[#1E4B35]/15 focus:border-[#1E4B35] transition-all appearance-none cursor-pointer font-medium"
+          >
+            <option value="">All cities</option>
+            <option v-for="city in availableCities" :key="city" :value="city">
+              {{ city }}
+            </option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#5A6F62]">
+            <ChevronDown class="w-4 h-4 stroke-[2]" />
+          </div>
+        </div>
       </div>
 
       <!-- 4. Status -->
       <div>
-        <label for="filter-status" class="block text-[11px] font-bold text-[#556e5f] uppercase tracking-wider mb-1.5">
+        <label for="filter-status" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#44564B] mb-1.5 font-sans">
           Status
         </label>
-        <select
-          id="filter-status"
-          :value="filters.status"
-          @change="(e) => handleSelectChange('status', (e.target as HTMLSelectElement).value)"
-          class="w-full py-2.5 px-3 text-xs bg-white text-[#1f3327] border border-[#dce6df] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
-        >
-          <option value="">All Statuses</option>
-          <option v-for="st in ESTABLISHMENT_STATUSES" :key="st" :value="st">
-            {{ st }}
-          </option>
-        </select>
+        <div class="relative">
+          <select
+            id="filter-status"
+            :value="filters.status"
+            @change="(e) => handleSelectChange('status', (e.target as HTMLSelectElement).value)"
+            class="w-full py-2.5 sm:py-3 pl-4 pr-9 text-xs sm:text-[13px] bg-[#F6F4EE] hover:bg-[#F0EEE6] focus:bg-[#FFFEFB] text-[#162A1F] border border-[#E2DDD0] rounded-2xl focus:outline-hidden focus:ring-2 focus:ring-[#1E4B35]/15 focus:border-[#1E4B35] transition-all appearance-none cursor-pointer font-medium"
+          >
+            <option value="">All statuses</option>
+            <option v-for="st in ESTABLISHMENT_STATUSES" :key="st" :value="st">
+              {{ st }}
+            </option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#5A6F62]">
+            <ChevronDown class="w-4 h-4 stroke-[2]" />
+          </div>
+        </div>
       </div>
 
-      <!-- 5. Inspection Status -->
+      <!-- 5. Status of Last Inspection -->
       <div class="col-span-2 sm:col-span-1">
-        <label for="filter-inspection-status" class="block text-[11px] font-bold text-[#556e5f] uppercase tracking-wider mb-1.5">
-          Inspection Status
+        <label for="filter-inspection-status" class="block text-xs sm:text-[13px] font-medium sm:font-semibold text-[#44564B] mb-1.5 font-sans">
+          Last inspection
         </label>
-        <select
-          id="filter-inspection-status"
-          :value="filters.inspectionStatus"
-          @change="(e) => handleSelectChange('inspectionStatus', (e.target as HTMLSelectElement).value)"
-          class="w-full py-2.5 px-3 text-xs bg-white text-[#1f3327] border border-[#dce6df] rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#366649]/20 focus:border-[#366649] transition-colors"
-        >
-          <option value="">All Inspection Statuses</option>
-          <option v-for="inst in INSPECTION_STATUSES" :key="inst" :value="inst">
-            {{ inst }}
-          </option>
-        </select>
+        <div class="relative">
+          <select
+            id="filter-inspection-status"
+            :value="filters.status_last_inspection"
+            @change="(e) => handleSelectChange('status_last_inspection', (e.target as HTMLSelectElement).value)"
+            class="w-full py-2.5 sm:py-3 pl-4 pr-9 text-xs sm:text-[13px] bg-[#F6F4EE] hover:bg-[#F0EEE6] focus:bg-[#FFFEFB] text-[#162A1F] border border-[#E2DDD0] rounded-2xl focus:outline-hidden focus:ring-2 focus:ring-[#1E4B35]/15 focus:border-[#1E4B35] transition-all appearance-none cursor-pointer font-medium"
+          >
+            <option value="">All results</option>
+            <option v-for="inst in INSPECTION_STATUSES" :key="inst" :value="inst">
+              {{ inst }}
+            </option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#5A6F62]">
+            <ChevronDown class="w-4 h-4 stroke-[2]" />
+          </div>
+        </div>
       </div>
     </div>
   </div>
