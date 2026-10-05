@@ -42,23 +42,40 @@ import {
 import { 
   Plus, 
   Building2, 
-  Home,
-  FileText,
-  ShieldCheck,
-  BarChart2,
-  Settings,
-  Bell,
-  ChevronDown,
-  Search,
-  Landmark,
-  Sun
+  Home, 
+  FileText, 
+  ShieldCheck, 
+  BarChart2, 
+  Settings, 
+  Bell, 
+  ChevronDown, 
+  Search, 
+  Landmark, 
+  Sun,
+  LogOut
 } from 'lucide-vue-next';
+import { useRouter } from 'vue-router';
+import { AuthService } from '../../services/authService';
+
+const emit = defineEmits<{
+  (e: 'logout'): void;
+}>();
+
+const router = useRouter();
 
 // State
 const establishments = ref<Establishment[]>([]);
 const isLoading = ref<boolean>(true);
 const toasts = ref<ToastMessage[]>([]);
 const activeNav = ref<string>('Establishment Management');
+const isUserMenuOpen = ref<boolean>(false);
+
+async function handleSignOut() {
+  isUserMenuOpen.value = false;
+  await AuthService.logout();
+  emit('logout');
+  router.push('/login');
+}
 
 // Top global search input
 const globalSearch = ref<string>('');
@@ -379,25 +396,25 @@ onMounted(() => {
         collapsible="icon"
         class="border-r border-[#1a422e]/60 bg-[#133323] text-[#dfd7b8] transition-[width] duration-200"
       >
-        <!-- Header: Brand -->
+        <!-- Header: Brand with Router Link -->
         <SidebarHeader class="p-4 border-b border-[#1b4330]/60 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-5 group-data-[collapsible=icon]:pb-2 group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
           <!-- Expanded View -->
-          <div class="flex items-center gap-3 overflow-hidden group-data-[collapsible=icon]:hidden">
-            <div class="w-11 h-11 flex items-center justify-center shrink-0">
+          <router-link to="/" class="flex items-center gap-3 overflow-hidden group-data-[collapsible=icon]:hidden cursor-pointer group">
+            <div class="w-11 h-11 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
               <img :src="logoFda" alt="FDA Logo" class="w-full h-full object-contain" />
             </div>
             <div class="flex flex-col min-w-0 flex-1">
-              <p class="text-xs font-bold text-[#f3ebd9] tracking-tight truncate leading-tight">FDA Regulatory Portal</p>
+              <p class="text-xs font-bold text-[#f3ebd9] tracking-tight truncate leading-tight group-hover:text-white transition-colors">FDA Regulatory Portal</p>
               <p class="text-[10px] text-[#9db8a7] font-medium truncate leading-tight mt-0.5">CDRHR Registry</p>
             </div>
-          </div>
+          </router-link>
 
           <!-- Collapsed Brand Logo -->
-          <div class="hidden group-data-[collapsible=icon]:flex items-center justify-center">
-            <div class="w-10 h-10 flex items-center justify-center shrink-0">
+          <router-link to="/" class="hidden group-data-[collapsible=icon]:flex items-center justify-center cursor-pointer">
+            <div class="w-10 h-10 flex items-center justify-center shrink-0 hover:scale-105 transition-transform">
               <img :src="logoFda" alt="FDA Logo" class="w-full h-full object-contain" />
             </div>
-          </div>
+          </router-link>
         </SidebarHeader>
 
         <!-- Navigation -->
@@ -510,9 +527,9 @@ onMounted(() => {
 
             <div class="h-4 w-px bg-[#e0ded5]"></div>
 
-            <!-- Breadcrumb Navigation -->
+            <!-- Breadcrumb Navigation with Router Link -->
             <nav class="flex items-center text-xs sm:text-sm" aria-label="Breadcrumb">
-              <span class="text-[#738278] hover:text-[#1a2b21] cursor-pointer transition-colors font-normal whitespace-nowrap">Building Your Application</span>
+              <router-link to="/" class="text-[#738278] hover:text-[#1a2b21] cursor-pointer transition-colors font-normal whitespace-nowrap">CDRHR Registry</router-link>
               <span class="text-[#9caaa1] mx-2 font-light">/</span>
               <span class="font-semibold text-[#1e2e25] whitespace-nowrap">{{ activeNav }}</span>
             </nav>
@@ -546,14 +563,46 @@ onMounted(() => {
             <!-- Vertical Divider -->
             <div class="h-7 w-px bg-[#e1e4de]"></div>
 
-            <!-- User Profile (Dark Green Avatar with Gold Ring) -->
-            <div class="flex items-center gap-3 cursor-pointer group">
-              <div class="w-10 h-10 rounded-full bg-[#1b3829] border border-[#c4a675] text-[#f3ebd9] flex items-center justify-center font-bold text-xs shadow-xs shrink-0 transition-transform group-hover:scale-102">
-                JD
+            <!-- User Profile (Dark Green Avatar with Gold Ring & Dropdown) -->
+            <div class="relative">
+              <div 
+                @click="isUserMenuOpen = !isUserMenuOpen"
+                class="flex items-center gap-3 cursor-pointer group select-none"
+              >
+                <div class="w-10 h-10 rounded-full bg-[#1b3829] border border-[#c4a675] text-[#f3ebd9] flex items-center justify-center font-bold text-xs shadow-xs shrink-0 transition-transform group-hover:scale-105">
+                  {{ AuthService.currentUser.value?.avatarInitials || 'JD' }}
+                </div>
+                <div class="hidden sm:block text-left">
+                  <p class="text-xs sm:text-sm font-bold text-[#1a2c22] leading-tight group-hover:text-[#1b3829] transition-colors">
+                    {{ AuthService.currentUser.value?.name || 'John Doe' }}
+                  </p>
+                  <p class="text-[10px] sm:text-[11px] text-[#718579] font-medium leading-tight mt-0.5">
+                    {{ AuthService.currentUser.value?.role || 'Regulatory Officer' }}
+                  </p>
+                </div>
+                <ChevronDown class="w-3.5 h-3.5 text-[#718579] group-hover:text-[#1a2c22] transition-transform" :class="{ 'rotate-180': isUserMenuOpen }" />
               </div>
-              <div class="hidden sm:block text-left">
-                <p class="text-xs sm:text-sm font-bold text-[#1a2c22] leading-tight group-hover:text-[#1b3829] transition-colors">John Doe</p>
-                <p class="text-[10px] sm:text-[11px] text-[#718579] font-medium leading-tight mt-0.5">Regulatory Officer</p>
+
+              <!-- Luxury User Profile Dropdown Menu -->
+              <div 
+                v-if="isUserMenuOpen"
+                class="absolute right-0 mt-3 w-64 bg-[#FFFEFB] border border-[#c4a675]/35 rounded-2xl shadow-xl py-2 z-50 animate-fadeIn"
+              >
+                <div class="px-4 py-2.5 border-b border-[#ecebe4]">
+                  <p class="text-[10px] font-bold text-[#8fa797] uppercase tracking-wider">Signed in as</p>
+                  <p class="text-xs font-bold text-[#0f291e] truncate mt-0.5">{{ AuthService.currentUser.value?.email || 'officer.jdoe@fda.gov.ph' }}</p>
+                  <p class="text-[10px] text-[#55695e] mt-0.5">{{ AuthService.currentUser.value?.division || 'CDRHR Center • CAR' }}</p>
+                </div>
+                <div class="py-1">
+                  <button 
+                    type="button"
+                    @click="handleSignOut"
+                    class="w-full px-4 py-2 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <LogOut class="w-3.5 h-3.5 text-rose-600" />
+                    <span>Sign Out to Login Page</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
