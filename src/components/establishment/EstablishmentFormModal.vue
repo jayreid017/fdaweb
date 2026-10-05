@@ -12,7 +12,6 @@ import {
 } from '../../data/locationData';
 import { 
   X, 
-  Building2, 
   Landmark,
   FileBadge2, 
   MapPin, 

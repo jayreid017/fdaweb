@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import bgLeaves from '../../assets/bg/bg-leaves.png';
 import logoFda from '../../assets/logoFDA.png';
 import type { 
   Establishment, 
@@ -35,18 +34,15 @@ import {
   SidebarGroupLabel,
   SidebarTrigger,
   SidebarInset,
-  SidebarSeparator,
   SidebarRail,
 } from '@/components/ui/sidebar';
 
 import { 
   Plus, 
-  Building2, 
   Home, 
   FileText, 
   ShieldCheck, 
   BarChart2, 
-  Settings, 
   Bell, 
   ChevronDown, 
   Search, 
