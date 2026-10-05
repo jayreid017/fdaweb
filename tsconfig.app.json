@@ -6,7 +6,6 @@
       "vite/client"
     ],
     "allowArbitraryExtensions": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"

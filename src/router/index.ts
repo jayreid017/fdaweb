@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import LoginPage from '../components/auth/LoginPage.vue';
 import EstablishmentPage from '../components/establishment/EstablishmentPage.vue';
-import { AuthService, initAuth } from '../services/authService';
+import { AuthService } from '../services/authService';
 
 const routes = [
   {
