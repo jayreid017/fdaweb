@@ -39,9 +39,11 @@ export interface Establishment {
   status: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  deleted_at?: string | null;
+  restored_at?: string | null;
 }
 
-export type EstablishmentFormData = Omit<Establishment, 'id' | 'created_at' | 'updated_at'>;
+export type EstablishmentFormData = Omit<Establishment, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'restored_at'>;
 
 export interface FilterState {
   search: string;
@@ -72,3 +74,5 @@ export interface ToastMessage {
 export interface FormErrors {
   [key: string]: string | undefined;
 }
+
+export type ConfirmationMode = 'trash' | 'restore' | 'permanent';

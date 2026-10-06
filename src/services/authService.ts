@@ -20,9 +20,23 @@ const currentUser = ref<UserProfile | null>(null);
 const currentSession = ref<SupabaseSession | null>(null);
 const isLoading = ref<boolean>(false);
 const isInitialized = ref<boolean>(false);
-const isRecoveryMode = ref<boolean>(
-  typeof window !== 'undefined' && sessionStorage.getItem(RECOVERY_STORAGE_KEY) === 'true'
-);
+function detectIncomingRecovery(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    const isUrl = hash.includes('type=recovery') || search.includes('type=recovery');
+    const isStored = sessionStorage.getItem(RECOVERY_STORAGE_KEY) === 'true';
+    if (isUrl) {
+      sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');
+    }
+    return isUrl || isStored;
+  } catch {
+    return false;
+  }
+}
+
+const isRecoveryMode = ref<boolean>(detectIncomingRecovery());
 
 let authReadyResolve: () => void;
 const authReadyPromise = new Promise<void>((resolve) => {
@@ -165,6 +179,22 @@ export const AuthService = {
   isAuthenticated: computed(() => !!currentUser.value),
   isRecoveryMode: computed(() => isRecoveryMode.value),
   isLoading: computed(() => isLoading.value),
+
+  /**
+   * Set recovery mode state explicitly
+   */
+  setRecoveryMode(val: boolean): void {
+    isRecoveryMode.value = val;
+    if (typeof window !== 'undefined') {
+      try {
+        if (val) {
+          sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');
+        } else {
+          sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+        }
+      } catch {}
+    }
+  },
 
   /**
    * Await initial Supabase authentication resolution
@@ -446,7 +476,14 @@ export const AuthService = {
     // 3. Await Supabase initial session check
     await AuthService.waitForAuthReady();
 
-    const { data: { session }, error } = await supabase.auth.getSession();
+    let { data: { session }, error } = await supabase.auth.getSession();
+    if (!session && !error) {
+      await new Promise((r) => setTimeout(r, 350));
+      const retry = await supabase.auth.getSession();
+      session = retry.data?.session || null;
+      error = retry.error;
+    }
+
     if (error || !session) {
       isRecoveryMode.value = false;
       try {

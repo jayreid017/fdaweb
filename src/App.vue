@@ -2,12 +2,14 @@
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from './lib/supabase';
+import { AuthService } from './services/authService';
 
 const router = useRouter();
 
 onMounted(() => {
   supabase.auth.onAuthStateChange((event) => {
     if (event === 'PASSWORD_RECOVERY') {
+      AuthService.setRecoveryMode(true);
       if (router.currentRoute.value.path !== '/reset-password') {
         router.push('/reset-password');
       }

@@ -5,6 +5,7 @@ import { Eye, Pencil, Trash2, MapPin } from 'lucide-vue-next';
 const props = defineProps<{
   establishment: Establishment;
   index: number;
+  isHighlighted?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -98,7 +99,12 @@ const getUpcomingInspectionInfo = (dateStr?: string | null) => {
 <template>
   <tr 
     @click="emit('view', establishment)"
-    class="hover:bg-[#E8F0EA]/80 transition-colors duration-150 border-b border-[#edf3ee] text-xs text-[#203629] group cursor-pointer"
+    class="transition-all duration-700 ease-in-out border-b text-xs text-[#203629] group cursor-pointer"
+    :class="[
+      isHighlighted 
+        ? 'bg-[#ebf5ee] ring-1 ring-inset ring-[#2e744d]/40 border-[#b8dfc7] shadow-xs' 
+        : 'hover:bg-[#E8F0EA]/80 border-[#edf3ee]'
+    ]"
   >
     <!-- 0. Row Number (No) -->
     <td class="w-12 px-3 py-4 text-center font-mono text-xs text-[#718579] font-medium select-none">
@@ -108,12 +114,20 @@ const getUpcomingInspectionInfo = (dateStr?: string | null) => {
     <!-- 1. Establishment name & Location -->
     <td class="px-3.5 py-4 max-w-65 lg:max-w-xs xl:max-w-50">
       <div class="flex flex-col min-w-0">
-        <span 
-          class="truncate font-semibold text-xs sm:text-[13px] text-[#111827] group-hover:text-[#1d4b35] transition-colors"
-          :title="establishment.establishment_name || '—'"
-        >
-          {{ val(establishment.establishment_name) }}
-        </span>
+        <div class="flex items-center gap-2 min-w-0">
+          <span 
+            class="truncate font-semibold text-xs sm:text-[13px] text-[#111827] group-hover:text-[#1d4b35] transition-colors"
+            :title="establishment.establishment_name || '—'"
+          >
+            {{ val(establishment.establishment_name) }}
+          </span>
+          <span
+            v-if="isHighlighted"
+            class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-[#1d4b35] text-[#f4ecd9] shadow-2xs shrink-0 select-none animate-fadeIn"
+          >
+            NEW
+          </span>
+        </div>
         <div 
           v-if="establishment.city_municipality || establishment.province" 
           class="flex items-center gap-1.5 text-[11.5px] text-[#6b7280] font-normal mt-1 truncate"
@@ -230,7 +244,14 @@ const getUpcomingInspectionInfo = (dateStr?: string | null) => {
       </span>
     </td>
 
-    <!-- 7. Actions -->
+    <!-- 7. Created at -->
+    <td class="px-3 py-4 whitespace-nowrap">
+      <span class="text-xs sm:text-sm font-medium text-[#111827]" :title="establishment.created_at || '—'">
+        {{ formatDate(establishment.created_at) }}
+      </span>
+    </td>
+
+    <!-- 8. Actions -->
     <td class="px-3.5 py-4 whitespace-nowrap text-right">
       <div class="inline-flex items-center justify-end gap-3">
         <!-- View Button -->
@@ -253,12 +274,12 @@ const getUpcomingInspectionInfo = (dateStr?: string | null) => {
           <Pencil class="w-4 h-4 stroke-[1.8]" />
         </button>
 
-        <!-- Delete Button -->
+        <!-- Delete Button (Moves to Trash) -->
         <button
           type="button"
           @click.stop="emit('delete', establishment)"
           class="text-[#889d91] hover:text-[#c94242] transition-colors cursor-pointer p-0.5"
-          title="Delete Record"
+          title="Delete (Move to Trash)"
         >
           <Trash2 class="w-4 h-4 stroke-[1.8]" />
         </button>

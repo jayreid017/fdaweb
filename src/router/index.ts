@@ -46,6 +46,15 @@ const routes = [
     redirect: '/'
   },
   {
+    path: '/trash',
+    name: 'Trash',
+    component: EstablishmentPage,
+    meta: {
+      title: 'Trash | FDA-CAR CDRHR Regulatory Portal',
+      requiresAuth: true
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }
@@ -66,9 +75,12 @@ router.beforeEach(async (to, _from, next) => {
   const search = window.location.search || '';
   const isUrlRecovery = hash.includes('type=recovery') || search.includes('type=recovery');
 
-  if (isUrlRecovery && to.path !== '/reset-password') {
-    next({ path: '/reset-password', hash: window.location.hash, query: to.query });
-    return;
+  if (isUrlRecovery) {
+    AuthService.setRecoveryMode(true);
+    if (to.path !== '/reset-password') {
+      next({ path: '/reset-password', hash: window.location.hash, query: to.query });
+      return;
+    }
   }
 
   // Await Supabase initial session check

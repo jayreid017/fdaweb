@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import type { Establishment } from '../../types/establishment';
 import EstablishmentRow from './EstablishmentRow.vue';
 import SkeletonTable from '../common/SkeletonTable.vue';
+import ExportDropdown from './ExportDropdown.vue';
 import { 
   Landmark, 
   ChevronUp, 
@@ -10,7 +11,6 @@ import {
   ChevronsUpDown, 
   Plus, 
   Inbox, 
-  Download, 
   RotateCw 
 } from 'lucide-vue-next';
 
@@ -19,7 +19,9 @@ const props = defineProps<{
   totalFilteredCount: number;
   totalCount?: number;
   isLoading: boolean;
+  isExporting?: boolean;
   startIndex: number;
+  highlightedId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -27,11 +29,11 @@ const emit = defineEmits<{
   (e: 'edit', item: Establishment): void;
   (e: 'delete', item: Establishment): void;
   (e: 'add'): void;
-  (e: 'export'): void;
+  (e: 'export', format: 'xlsx' | 'csv'): void;
   (e: 'refresh'): void;
 }>();
 
-type SortKey = 'establishment_name' | 'next_inspection' | 'status' | '';
+type SortKey = 'establishment_name' | 'next_inspection' | 'status' | 'created_at' | '';
 const sortKey = ref<SortKey>('');
 const sortOrder = ref<'asc' | 'desc'>('asc');
 
@@ -40,7 +42,7 @@ function toggleSort(key: SortKey) {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
   } else {
     sortKey.value = key;
-    sortOrder.value = 'asc';
+    sortOrder.value = key === 'created_at' ? 'desc' : 'asc';
   }
 }
 
@@ -51,7 +53,7 @@ const sortedList = computed(() => {
     const aVal = a[sortKey.value as keyof Establishment] || '';
     const bVal = b[sortKey.value as keyof Establishment] || '';
 
-    if (sortKey.value === 'next_inspection') {
+    if (sortKey.value === 'created_at' || sortKey.value === 'next_inspection') {
       const aTime = new Date((aVal as string) || '').getTime() || 0;
       const bTime = new Date((bVal as string) || '').getTime() || 0;
       return sortOrder.value === 'asc' ? aTime - bTime : bTime - aTime;
@@ -86,17 +88,14 @@ const sortedList = computed(() => {
         </div>
       </div>
 
-      <!-- Right Top Actions: Export CSV and Refresh -->
+      <!-- Right Top Actions: Export Dropdown and Refresh -->
       <div class="flex items-center gap-2.5 self-end sm:self-auto">
-        <button
-          type="button"
-          @click="emit('export')"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-[#f9f8f5] hover:bg-[#edeae1] text-[#1c2d22] text-xs font-semibold rounded-xl border border-[#e5e3d8] transition-colors cursor-pointer shadow-2xs"
-          title="Export records to CSV"
-        >
-          <Download class="w-4 h-4 stroke-[1.8]" />
-          <span>Export CSV</span>
-        </button>
+        <ExportDropdown
+          :filtered-count="totalFilteredCount"
+          :is-exporting="isExporting"
+          :disabled="isLoading || totalFilteredCount === 0"
+          @export="(format) => emit('export', format)"
+        />
         <button
           type="button"
           @click="emit('refresh')"
@@ -204,7 +203,23 @@ const sortedList = computed(() => {
               </div>
             </th>
 
-            <!-- 7. Actions -->
+            <!-- 7. Created at -->
+            <th 
+              scope="col" 
+              class="px-3 py-3.5 whitespace-nowrap cursor-pointer hover:text-[#172a1f] transition-colors"
+              @click="toggleSort('created_at')"
+            >
+              <div class="flex items-center gap-1.5">
+                <span>Created at</span>
+                <span class="text-[#728a7c]">
+                  <ChevronUp v-if="sortKey === 'created_at' && sortOrder === 'asc'" class="w-3.5 h-3.5 text-[#1d4b35]" />
+                  <ChevronDown v-else-if="sortKey === 'created_at' && sortOrder === 'desc'" class="w-3.5 h-3.5 text-[#1d4b35]" />
+                  <ChevronsUpDown v-else class="w-3.5 h-3.5 opacity-60" />
+                </span>
+              </div>
+            </th>
+
+            <!-- 8. Actions -->
             <th 
               scope="col" 
               class="px-3.5 py-3.5 text-right whitespace-nowrap"
@@ -219,6 +234,7 @@ const sortedList = computed(() => {
             :key="item.id"
             :establishment="item"
             :index="startIndex + idx + 1"
+            :is-highlighted="highlightedId === item.id"
             @view="(item) => emit('view', item)"
             @edit="(item) => emit('edit', item)"
             @delete="(item) => emit('delete', item)"
