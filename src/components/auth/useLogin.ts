@@ -1,33 +1,59 @@
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { AuthService } from '../../services/authService';
 
 const REMEMBER_KEY = 'fda_remember_me';
 const REMEMBER_EMAIL_KEY = 'fda_remembered_email';
 
+export interface SavedAccount {
+  name: string;
+  role: string;
+  email: string;
+  initials: string;
+}
+
+const DEFAULT_SAVED_ACCOUNT: SavedAccount = {
+  name: 'dsupplier0907',
+  role: 'Regulatory Officer',
+  email: 'dsupplier0907@gmail.com',
+  initials: 'DS'
+};
+
 export function useLogin(emit?: (e: 'login-success') => void) {
   const router = useRouter();
   const route = useRoute();
 
-  // Form states
+  // Form states (Normal Login)
   const email = ref<string>('');
   const password = ref<string>('');
   const rememberMe = ref<boolean>(true);
-  const isRemembered = ref<boolean>(false);
+  const isRemembered = ref<boolean>(true);
   const showPassword = ref<boolean>(false);
   const isSubmitting = ref<boolean>(false);
   const errorMessage = ref<string>('');
   const successMessage = ref<string>('');
   const isCapsLockOn = ref<boolean>(false);
 
-  // Fast Login / Remembered Officer info
-  const rememberedName = ref<string>('');
-  const rememberedRole = ref<string>('');
-  const rememberedInitials = ref<string>('');
+  // Saved Account profile
+  const savedAccount = ref<SavedAccount>({ ...DEFAULT_SAVED_ACCOUNT });
+  const rememberedName = ref<string>(DEFAULT_SAVED_ACCOUNT.name);
+  const rememberedRole = ref<string>(DEFAULT_SAVED_ACCOUNT.role);
+  const rememberedInitials = ref<string>(DEFAULT_SAVED_ACCOUNT.initials);
 
-  // Reference to inputs for rapid auto-focus
+  // Fast Login Modal states
+  const isFastLoginModalOpen = ref<boolean>(false);
+  const fastLoginPassword = ref<string>('');
+  const fastLoginShowPassword = ref<boolean>(false);
+  const fastLoginError = ref<string>('');
+  const isFastLoginSubmitting = ref<boolean>(false);
+
+  // Google OAuth state
+  const isGoogleSubmitting = ref<boolean>(false);
+
+  // DOM input refs
   const emailInputRef = ref<HTMLInputElement | null>(null);
   const passwordInputRef = ref<HTMLInputElement | null>(null);
+  const fastPasswordInputRef = ref<HTMLInputElement | null>(null);
 
   // Forgot Password Modal
   const isForgotModalOpen = ref<boolean>(false);
@@ -64,22 +90,40 @@ export function useLogin(emit?: (e: 'login-success') => void) {
     // Fast Login: Check if user previously saved their email
     const savedRemember = localStorage.getItem(REMEMBER_KEY);
     const savedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
-    if (savedRemember === 'true' && savedEmail) {
-      rememberMe.value = true;
-      email.value = savedEmail;
-      isRemembered.value = true;
-      rememberedName.value = localStorage.getItem('fda_remembered_name') || '';
-      rememberedRole.value = localStorage.getItem('fda_remembered_role') || '';
-      rememberedInitials.value = localStorage.getItem('fda_remembered_initials') || '';
 
-      // Auto-focus password input so the officer can immediately type password & press Enter
-      setTimeout(() => {
-        passwordInputRef.value?.focus();
-      }, 100);
+    if (savedRemember === 'false') {
+      isRemembered.value = false;
+    } else if (savedEmail) {
+      isRemembered.value = true;
+      const accName = localStorage.getItem('fda_remembered_name') || savedEmail.split('@')[0];
+      const accRole = localStorage.getItem('fda_remembered_role') || 'Regulatory Officer';
+      const accInitials = localStorage.getItem('fda_remembered_initials') || 'DS';
+
+      savedAccount.value = {
+        name: accName,
+        role: accRole,
+        email: savedEmail,
+        initials: accInitials
+      };
+      rememberedName.value = accName;
+      rememberedRole.value = accRole;
+      rememberedInitials.value = accInitials;
+    } else {
+      // Default initial state: dsupplier0907 saved account
+      isRemembered.value = true;
+      savedAccount.value = { ...DEFAULT_SAVED_ACCOUNT };
+      rememberedName.value = DEFAULT_SAVED_ACCOUNT.name;
+      rememberedRole.value = DEFAULT_SAVED_ACCOUNT.role;
+      rememberedInitials.value = DEFAULT_SAVED_ACCOUNT.initials;
+      localStorage.setItem(REMEMBER_KEY, 'true');
+      localStorage.setItem(REMEMBER_EMAIL_KEY, DEFAULT_SAVED_ACCOUNT.email);
+      localStorage.setItem('fda_remembered_name', DEFAULT_SAVED_ACCOUNT.name);
+      localStorage.setItem('fda_remembered_role', DEFAULT_SAVED_ACCOUNT.role);
+      localStorage.setItem('fda_remembered_initials', DEFAULT_SAVED_ACCOUNT.initials);
     }
 
     if (route.hash === '#forgot-password' || route.query.modal === 'forgot-password') {
-      isForgotModalOpen.value = true;
+      router.push('/forgot-password');
     }
   });
 
@@ -88,27 +132,96 @@ export function useLogin(emit?: (e: 'login-success') => void) {
     isCapsLockOn.value = event.getModifierState('CapsLock');
   }
 
+  // Fast Login Modal Handlers
+  function openFastLoginModal() {
+    fastLoginPassword.value = '';
+    fastLoginError.value = '';
+    fastLoginShowPassword.value = false;
+    isFastLoginModalOpen.value = true;
+    // Keep page error message clear
+    errorMessage.value = '';
+    nextTick(() => {
+      fastPasswordInputRef.value?.focus();
+    });
+  }
+
+  function closeFastLoginModal() {
+    isFastLoginModalOpen.value = false;
+    fastLoginPassword.value = '';
+    fastLoginError.value = '';
+  }
+
+  function handleSwitchAccount() {
+    closeFastLoginModal();
+    nextTick(() => {
+      emailInputRef.value?.focus();
+    });
+  }
+
+  function openForgotFromFastLogin() {
+    closeFastLoginModal();
+    router.push('/forgot-password');
+  }
+
+  // Authenticate Fast Login (Password-only)
+  async function handleFastLoginSubmit() {
+    if (isFastLoginSubmitting.value) return;
+    fastLoginError.value = '';
+
+    if (!fastLoginPassword.value) {
+      fastLoginError.value = 'Please enter your security password.';
+      fastPasswordInputRef.value?.focus();
+      return;
+    }
+
+    isFastLoginSubmitting.value = true;
+    try {
+      const res = await AuthService.login(savedAccount.value.email, fastLoginPassword.value);
+      if (res.success) {
+        isFastLoginModalOpen.value = false;
+        successMessage.value = res.message;
+        const redirectTarget = (route.query.redirect as string) || '/';
+        setTimeout(() => {
+          if (emit) emit('login-success');
+          router.push(redirectTarget);
+        }, 400);
+      } else {
+        // Compact inline error inside the modal - DO NOT show main banner
+        fastLoginError.value = 'Incorrect password. Please try again.';
+        nextTick(() => {
+          fastPasswordInputRef.value?.focus();
+          fastPasswordInputRef.value?.select();
+        });
+      }
+    } catch {
+      fastLoginError.value = 'Incorrect password. Please try again.';
+      nextTick(() => {
+        fastPasswordInputRef.value?.focus();
+        fastPasswordInputRef.value?.select();
+      });
+    } finally {
+      isFastLoginSubmitting.value = false;
+    }
+  }
+
   // Clear remembered email and reset field
   function clearRemembered() {
-    email.value = '';
-    password.value = '';
     isRemembered.value = false;
-    rememberMe.value = true;
-    rememberedName.value = '';
-    rememberedRole.value = '';
-    rememberedInitials.value = '';
-    localStorage.removeItem(REMEMBER_KEY);
+    localStorage.setItem(REMEMBER_KEY, 'false');
     localStorage.removeItem(REMEMBER_EMAIL_KEY);
     localStorage.removeItem('fda_remembered_name');
     localStorage.removeItem('fda_remembered_role');
     localStorage.removeItem('fda_remembered_initials');
-    setTimeout(() => {
+    email.value = '';
+    password.value = '';
+    nextTick(() => {
       emailInputRef.value?.focus();
-    }, 50);
+    });
   }
 
-  // Handle login submit
+  // Handle normal login submit
   async function handleLogin() {
+    if (isSubmitting.value) return;
     errorMessage.value = '';
     successMessage.value = '';
 
@@ -133,26 +246,22 @@ export function useLogin(emit?: (e: 'login-success') => void) {
         if (rememberMe.value) {
           localStorage.setItem(REMEMBER_KEY, 'true');
           localStorage.setItem(REMEMBER_EMAIL_KEY, email.value.trim());
-          if (res.user?.name) {
-            localStorage.setItem('fda_remembered_name', res.user.name);
-            rememberedName.value = res.user.name;
-          }
-          if (res.user?.role) {
-            localStorage.setItem('fda_remembered_role', res.user.role);
-            rememberedRole.value = res.user.role;
-          }
-          if (res.user?.avatarInitials) {
-            localStorage.setItem('fda_remembered_initials', res.user.avatarInitials);
-            rememberedInitials.value = res.user.avatarInitials;
-          }
+          const accName = res.user?.name || email.value.trim().split('@')[0];
+          const accRole = res.user?.role || 'Regulatory Officer';
+          const accInitials = res.user?.avatarInitials || (accName.slice(0, 2).toUpperCase());
+          localStorage.setItem('fda_remembered_name', accName);
+          localStorage.setItem('fda_remembered_role', accRole);
+          localStorage.setItem('fda_remembered_initials', accInitials);
+          savedAccount.value = {
+            name: accName,
+            role: accRole,
+            email: email.value.trim(),
+            initials: accInitials
+          };
+          rememberedName.value = accName;
+          rememberedRole.value = accRole;
+          rememberedInitials.value = accInitials;
           isRemembered.value = true;
-        } else {
-          localStorage.removeItem(REMEMBER_KEY);
-          localStorage.removeItem(REMEMBER_EMAIL_KEY);
-          localStorage.removeItem('fda_remembered_name');
-          localStorage.removeItem('fda_remembered_role');
-          localStorage.removeItem('fda_remembered_initials');
-          isRemembered.value = false;
         }
 
         const redirectTarget = (route.query.redirect as string) || '/';
@@ -167,6 +276,23 @@ export function useLogin(emit?: (e: 'login-success') => void) {
       errorMessage.value = (err.message || 'An error occurred during authentication.').replace(/supabase/gi, 'system');
     } finally {
       isSubmitting.value = false;
+    }
+  }
+
+  // Google OAuth Login
+  async function handleGoogleLogin() {
+    if (isGoogleSubmitting.value) return;
+    errorMessage.value = '';
+    isGoogleSubmitting.value = true;
+    try {
+      const res = await AuthService.loginWithGoogle();
+      if (!res.success && res.message) {
+        errorMessage.value = res.message;
+      }
+    } catch (err: any) {
+      errorMessage.value = err.message || 'Google sign-in could not be initiated.';
+    } finally {
+      isGoogleSubmitting.value = false;
     }
   }
 
@@ -216,9 +342,26 @@ export function useLogin(emit?: (e: 'login-success') => void) {
     password,
     rememberMe,
     isRemembered,
+    savedAccount,
     rememberedName,
     rememberedRole,
     rememberedInitials,
+    // Fast Login modal
+    isFastLoginModalOpen,
+    fastLoginPassword,
+    fastLoginShowPassword,
+    fastLoginError,
+    isFastLoginSubmitting,
+    fastPasswordInputRef,
+    openFastLoginModal,
+    closeFastLoginModal,
+    handleFastLoginSubmit,
+    handleSwitchAccount,
+    openForgotFromFastLogin,
+    // Google login
+    isGoogleSubmitting,
+    handleGoogleLogin,
+    // Normal login
     emailInputRef,
     passwordInputRef,
     focusPassword,

@@ -1,4 +1,19 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { supabase } from './lib/supabase';
+
+const router = useRouter();
+
+onMounted(() => {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      if (router.currentRoute.value.path !== '/reset-password') {
+        router.push('/reset-password');
+      }
+    }
+  });
+});
 </script>
 
 <template>

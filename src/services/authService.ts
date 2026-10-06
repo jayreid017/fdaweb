@@ -14,11 +14,15 @@ export interface UserProfile {
 }
 
 const STORAGE_KEY = 'fda_auth_user';
+const RECOVERY_STORAGE_KEY = 'fda_recovery_active';
 
 const currentUser = ref<UserProfile | null>(null);
 const currentSession = ref<SupabaseSession | null>(null);
 const isLoading = ref<boolean>(false);
 const isInitialized = ref<boolean>(false);
+const isRecoveryMode = ref<boolean>(
+  typeof window !== 'undefined' && sessionStorage.getItem(RECOVERY_STORAGE_KEY) === 'true'
+);
 
 let authReadyResolve: () => void;
 const authReadyPromise = new Promise<void>((resolve) => {
@@ -55,6 +59,18 @@ function parseUserProfile(user: SupabaseUser): UserProfile {
 }
 
 /**
+ * Clean URL hash/search tokens from browser location without triggering page reload
+ */
+function cleanRecoveryUrl(): void {
+  if (typeof window === 'undefined') return;
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+  if (hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('code=')) {
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+}
+
+/**
  * Initialize Supabase Auth listener and restore existing session
  */
 export function initAuth(): Promise<void> {
@@ -62,6 +78,18 @@ export function initAuth(): Promise<void> {
     return authReadyPromise;
   }
   isInitialized.value = true;
+
+  // Detect recovery markers in incoming URL
+  if (typeof window !== 'undefined') {
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    if (hash.includes('type=recovery') || search.includes('type=recovery')) {
+      isRecoveryMode.value = true;
+      try {
+        sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');
+      } catch {}
+    }
+  }
 
   // 1. Initial cached profile for instantaneous UI render
   const cached = localStorage.getItem(STORAGE_KEY);
@@ -98,14 +126,33 @@ export function initAuth(): Promise<void> {
   // 3. Listen to all Supabase Auth State changes in real time
   supabase.auth.onAuthStateChange((event, session) => {
     currentSession.value = session;
+
+    if (event === 'PASSWORD_RECOVERY') {
+      isRecoveryMode.value = true;
+      try {
+        sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');
+      } catch {}
+      if (session?.user) {
+        currentUser.value = parseUserProfile(session.user);
+      }
+      return;
+    }
+
+    if (event === 'SIGNED_OUT') {
+      currentUser.value = null;
+      currentSession.value = null;
+      isRecoveryMode.value = false;
+      try {
+        sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {}
+      return;
+    }
+
     if (session?.user) {
       const profile = parseUserProfile(session.user);
       currentUser.value = profile;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-    } else if (event === 'SIGNED_OUT') {
-      currentUser.value = null;
-      currentSession.value = null;
-      localStorage.removeItem(STORAGE_KEY);
     }
   });
 
@@ -116,6 +163,7 @@ export const AuthService = {
   currentUser: computed(() => currentUser.value),
   currentSession: computed(() => currentSession.value),
   isAuthenticated: computed(() => !!currentUser.value),
+  isRecoveryMode: computed(() => isRecoveryMode.value),
   isLoading: computed(() => isLoading.value),
 
   /**
@@ -149,7 +197,7 @@ export const AuthService = {
       });
 
       if (error) {
-        console.error('[Supabase Auth] Sign In Error:', error);
+        console.error('[Supabase Auth] Sign In Error:', error.message);
         throw new Error(error.message);
       }
 
@@ -171,6 +219,37 @@ export const AuthService = {
       return {
         success: false,
         message: err.message || 'Authentication failed. Please verify your credentials.'
+      };
+    } finally {
+      isLoading.value = false;
+    }
+  },
+
+  /**
+   * Connect and sign in with Google OAuth via Supabase
+   */
+  async loginWithGoogle(): Promise<{ success: boolean; message?: string }> {
+    isLoading.value = true;
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (error) {
+        console.error('[Supabase Auth] Google Sign In Error:', error.message);
+        throw new Error(error.message);
+      }
+
+      return {
+        success: true
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Google authentication could not be completed.'
       };
     } finally {
       isLoading.value = false;
@@ -234,7 +313,8 @@ export const AuthService = {
   },
 
   /**
-   * Request real password reset email via Supabase Auth
+   * Request password reset email via Supabase Auth
+   * Uses configured production URL or window.location.origin targeting /reset-password
    */
   async resetPassword(email: string): Promise<{ success: boolean; message: string }> {
     try {
@@ -243,7 +323,10 @@ export const AuthService = {
         return { success: false, message: 'Please enter your registered email address.' };
       }
 
-      const redirectUrl = `${window.location.origin}/login`;
+      // Priority: VITE_SITE_URL or VITE_APP_URL, falling back to window.location.origin
+      const baseUrl = (import.meta.env.VITE_SITE_URL || import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/+$/, '');
+      const redirectUrl = `${baseUrl}/reset-password`;
+
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo: redirectUrl
       });
@@ -265,6 +348,138 @@ export const AuthService = {
   },
 
   /**
+   * Update password in Supabase Auth using active recovery session
+   */
+  async updatePassword(password: string): Promise<{ success: boolean; message: string }> {
+    isLoading.value = true;
+    try {
+      const cleanPassword = password.trim();
+      if (!cleanPassword || cleanPassword.length < 8) {
+        throw new Error('Password must be at least 8 characters.');
+      }
+
+      const { data, error } = await supabase.auth.updateUser({
+        password: cleanPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.user) {
+        const profile = parseUserProfile(data.user);
+        currentUser.value = profile;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      }
+
+      // Clear recovery state after successful update
+      isRecoveryMode.value = false;
+      try {
+        sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+      } catch {}
+
+      return {
+        success: true,
+        message: 'Password updated successfully!'
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: (err.message || 'Failed to update password.').replace(/supabase/gi, 'system')
+      };
+    } finally {
+      isLoading.value = false;
+    }
+  },
+
+  /**
+   * Verify whether the current browser context holds a valid recovery session
+   */
+  async checkRecoveryState(): Promise<{ isValid: boolean; error?: string }> {
+    // 1. Check for error parameters in hash or search query
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+    const search = window.location.search.startsWith('?') ? window.location.search.slice(1) : '';
+    const hashParams = new URLSearchParams(hash);
+    const searchParams = new URLSearchParams(search);
+
+    const hasError = hashParams.get('error') || searchParams.get('error')
+      || hashParams.get('error_description') || searchParams.get('error_description')
+      || hashParams.get('error_code') || searchParams.get('error_code');
+
+    if (hasError) {
+      cleanRecoveryUrl();
+      isRecoveryMode.value = false;
+      try {
+        sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+      } catch {}
+      return {
+        isValid: false,
+        error: 'Password reset link is invalid or has expired.'
+      };
+    }
+
+    // 2. PKCE code exchange if present
+    const code = searchParams.get('code');
+    if (code) {
+      try {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error || !data?.session) {
+          cleanRecoveryUrl();
+          return { isValid: false, error: 'Password reset link is invalid or has expired.' };
+        }
+        currentSession.value = data.session;
+        if (data.session.user) {
+          currentUser.value = parseUserProfile(data.session.user);
+        }
+        isRecoveryMode.value = true;
+        try {
+          sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');
+        } catch {}
+        cleanRecoveryUrl();
+        return { isValid: true };
+      } catch {
+        cleanRecoveryUrl();
+        return { isValid: false, error: 'Password reset link is invalid or has expired.' };
+      }
+    }
+
+    // 3. Await Supabase initial session check
+    await AuthService.waitForAuthReady();
+
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session) {
+      isRecoveryMode.value = false;
+      try {
+        sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+      } catch {}
+      cleanRecoveryUrl();
+      return {
+        isValid: false,
+        error: 'Password reset link is invalid or has expired.'
+      };
+    }
+
+    // 4. Must be a recovery session (either from URL type=recovery, PASSWORD_RECOVERY event, or active recovery storage)
+    const isUrlRecovery = hash.includes('type=recovery') || search.includes('type=recovery');
+    const isStorageRecovery = sessionStorage.getItem(RECOVERY_STORAGE_KEY) === 'true';
+
+    if (isRecoveryMode.value || isUrlRecovery || isStorageRecovery) {
+      isRecoveryMode.value = true;
+      try {
+        sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');
+      } catch {}
+      cleanRecoveryUrl();
+      return { isValid: true };
+    }
+
+    // Normal session visiting /reset-password without recovery intent
+    return {
+      isValid: false,
+      error: 'Password reset link is invalid or has expired.'
+    };
+  },
+
+  /**
    * Signs out from Supabase Auth and clears session
    */
   async logout(): Promise<void> {
@@ -275,6 +490,10 @@ export const AuthService = {
     }
     currentUser.value = null;
     currentSession.value = null;
-    localStorage.removeItem(STORAGE_KEY);
+    isRecoveryMode.value = false;
+    try {
+      sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
   }
 };

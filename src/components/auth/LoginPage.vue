@@ -13,42 +13,50 @@ import {
   Landmark, 
   CheckCircle2, 
   AlertCircle, 
-  HelpCircle, 
   X, 
-  Clock 
+  Clock,
+  ChevronRight,
+  KeyRound
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
   (e: 'login-success'): void;
 }>();
 
-// All auth states, handlers, and logic separated cleanly in useLogin.ts
+// Auth states, handlers, and modal logic cleanly decoupled in useLogin.ts
 const {
   email,
   password,
   rememberMe,
   isRemembered,
-  rememberedName,
-  rememberedRole,
-  rememberedInitials,
+  savedAccount,
+  // Fast Login Modal states & actions
+  isFastLoginModalOpen,
+  fastLoginPassword,
+  fastLoginShowPassword,
+  fastLoginError,
+  isFastLoginSubmitting,
+  fastPasswordInputRef,
+  openFastLoginModal,
+  closeFastLoginModal,
+  handleFastLoginSubmit,
+  handleSwitchAccount,
+  // Google OAuth
+  isGoogleSubmitting,
+  handleGoogleLogin,
+  // Normal Login states & actions
+  emailInputRef,
+  passwordInputRef,
   focusPassword,
   showPassword,
   isSubmitting,
   errorMessage,
   successMessage,
   isCapsLockOn,
-  isForgotModalOpen,
-  forgotEmail,
-  isForgotSubmitting,
-  forgotSubmitted,
-  forgotError,
   currentTime,
   checkCapsLock,
   clearRemembered,
-  handleLogin,
-  handleDemoLogin,
-  handleForgotSubmit,
-  closeForgotModal
+  handleLogin
 } = useLogin(emit);
 </script>
 
@@ -182,10 +190,10 @@ const {
             <div class="absolute -bottom-4 -left-4 w-72 h-72 bg-[#133323]/8 rounded-full blur-3xl pointer-events-none"></div>
 
             <!-- Pristine Glass Card -->
-            <div class="relative bg-[#FFFEFB]/90 backdrop-blur-xl rounded-3xl border border-[#c5a869]/30 shadow-[0_20px_60px_-15px_rgba(19,51,35,0.12)] p-7 sm:p-10 transition-all">
+            <div class="relative bg-[#FFFEFB]/95 backdrop-blur-xl rounded-3xl border border-[#c5a869]/30 shadow-[0_20px_60px_-15px_rgba(19,51,35,0.12)] p-7 sm:p-9 transition-all">
               
               <!-- Card Header -->
-              <div class="mb-8">
+              <div class="mb-7">
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-[11px] font-bold uppercase tracking-widest text-[#937b42]">
                     Secure Sign In
@@ -204,39 +212,7 @@ const {
                 </p>
               </div>
 
-              <!-- Fast Login: Remembered Officer Profile Banner -->
-              <div 
-                v-if="isRemembered" 
-                class="mb-6 p-3.5 rounded-2xl bg-gradient-to-r from-[#123122]/6 via-[#c5a869]/10 to-[#123122]/6 border border-[#c5a869]/40 flex items-center justify-between gap-3 shadow-2xs animate-fadeIn"
-              >
-                <div class="flex items-center gap-3 min-w-0">
-                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#123122] to-[#255239] text-[#e8dfc8] font-bold text-xs flex items-center justify-center border border-[#c5a869]/40 shadow-xs shrink-0">
-                    {{ rememberedInitials || 'FDA' }}
-                  </div>
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-1.5">
-                      <p class="text-xs font-bold text-[#0f291e] truncate">
-                        {{ rememberedName || email }}
-                      </p>
-                      <span class="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-full bg-[#133323] text-[#e8dfc8]">
-                        Fast Login
-                      </span>
-                    </div>
-                    <p class="text-[11px] text-[#55695e] truncate">
-                      {{ rememberedRole || 'Authorized Regulatory Officer' }}
-                    </p>
-                  </div>
-                </div>
-                <button 
-                  type="button" 
-                  @click="clearRemembered"
-                  class="text-[11px] font-semibold text-[#8b733b] hover:text-[#55421a] hover:underline cursor-pointer shrink-0"
-                >
-                  Switch Account
-                </button>
-              </div>
-
-              <!-- Alerts / Feedback Notification -->
+              <!-- Main Page Alerts / Feedback Notification (Only for Normal & Google Login) -->
               <div 
                 v-if="errorMessage" 
                 class="mb-6 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 animate-fadeIn"
@@ -253,37 +229,95 @@ const {
                 <span class="leading-relaxed flex-1">{{ successMessage }}</span>
               </div>
 
-              <!-- Caps Lock Alert -->
+              <!-- CAPS LOCK Alert for Normal Login -->
               <div 
-                v-if="isCapsLockOn"
+                v-if="isCapsLockOn && !isFastLoginModalOpen"
                 class="mb-4 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2"
               >
                 <span class="font-bold">CAPS LOCK is on</span>
               </div>
 
-              <!-- LOGIN FORM -->
-              <form @submit.prevent="handleLogin" class="space-y-5">
+              <!-- FAST LOGIN: SAVED ACCOUNT CARD -->
+              <div v-if="isRemembered" class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-[#8b733b] flex items-center gap-1.5">
+                    <Sparkles class="w-3 h-3 text-[#c5a869]" /> Fast Login
+                  </span>
+                  <button 
+                    type="button" 
+                    @click="clearRemembered"
+                    class="text-[11px] font-medium text-[#7a8e81] hover:text-rose-600 cursor-pointer transition-colors"
+                    title="Forget saved account on this device"
+                  >
+                    Forget
+                  </button>
+                </div>
+
+                <!-- ENTIRE CARD IS CLICKABLE -->
+                <div 
+                  id="fast-login-account-card"
+                  @click="openFastLoginModal"
+                  role="button"
+                  tabindex="0"
+                  aria-label="Fast login as saved account"
+                  @keydown.enter="openFastLoginModal"
+                  @keydown.space.prevent="openFastLoginModal"
+                  class="group relative w-full p-4 rounded-2xl bg-gradient-to-r from-[#123122]/5 via-[#c5a869]/8 to-[#123122]/5 hover:from-[#123122]/10 hover:via-[#c5a869]/14 hover:to-[#123122]/10 border border-[#c5a869]/40 hover:border-[#c5a869] shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer flex items-center justify-between gap-4 select-none outline-none focus:ring-2 focus:ring-[#c5a869]/50"
+                >
+                  <div class="flex items-center gap-3.5 min-w-0">
+                    <!-- Status Indicator Dot (🟢) -->
+                    <div class="relative flex items-center justify-center shrink-0">
+                      <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-600 ring-2 ring-emerald-100"></span>
+                    </div>
+
+                    <!-- Account Details -->
+                    <div class="min-w-0 text-left">
+                      <div class="flex items-center gap-2">
+                        <p class="text-sm font-bold text-[#0f291e] tracking-tight group-hover:text-[#133323] transition-colors truncate">
+                          {{ savedAccount.name }}
+                        </p>
+                        <span class="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-[#133323] text-[#e8dfc8]">
+                          Saved
+                        </span>
+                      </div>
+                      <p class="text-xs font-medium text-[#2d5c41] mt-0.5 truncate">
+                        {{ savedAccount.role }}
+                      </p>
+                      <p class="text-[11px] text-[#617669] font-mono truncate mt-0.5">
+                        {{ savedAccount.email }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Right Chevron (›) -->
+                  <div class="shrink-0 flex items-center text-[#937b42] group-hover:text-[#133323] group-hover:translate-x-1 transition-all">
+                    <ChevronRight class="w-5 h-5 stroke-[2.2]" />
+                  </div>
+                </div>
+
+                <!-- Subtle Section Divider -->
+                <div class="relative my-6">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-[#e2e7e2]"></div>
+                  </div>
+                  <div class="relative flex justify-center text-xs">
+                    <span class="bg-[#FFFEFB] px-3 text-[11px] font-medium text-[#7a8e81]">
+                      or sign in with credentials
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- NORMAL LOGIN FORM -->
+              <form @submit.prevent="handleLogin" class="space-y-4 sm:space-y-4.5">
                 
                 <!-- Email Input Field -->
                 <div>
                   <div class="flex items-center justify-between mb-1.5">
-                    <label class="block text-xs font-semibold text-[#1a3828] tracking-wide">
+                    <label for="login-email-input" class="block text-xs font-semibold text-[#1a3828] tracking-wide">
                       Official Email / Government ID
                     </label>
-                    <span 
-                      v-if="isRemembered" 
-                      class="inline-flex items-center gap-1.5 text-[10px] text-[#245237] bg-[#eaf3ed] border border-[#c6dfcd] px-2 py-0.5 rounded-full font-medium select-none"
-                    >
-                      <span>Saved</span>
-                      <button 
-                        type="button" 
-                        @click="clearRemembered" 
-                        class="hover:text-rose-600 cursor-pointer font-bold leading-none" 
-                        title="Forget this email"
-                      >
-                        ✕
-                      </button>
-                    </span>
                   </div>
                   <div class="relative group">
                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#7d9285] group-focus-within:text-[#255239] transition-colors">
@@ -298,7 +332,7 @@ const {
                       placeholder="e.g. officer.name@fda.gov.ph"
                       autocomplete="email"
                       required
-                      class="w-full pl-10 pr-4 py-3 bg-[#fdfcf7] hover:bg-white text-sm text-[#0f291e] placeholder:text-[#9bb0a3] rounded-xl border border-[#d6dfd8] focus:border-[#c5a869] focus:ring-2 focus:ring-[#c5a869]/25 shadow-2xs transition-all duration-150 outline-hidden font-medium"
+                      class="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-[#fdfcf7] hover:bg-white text-sm text-[#0f291e] placeholder:text-[#9bb0a3] rounded-xl border border-[#d6dfd8] focus:border-[#c5a869] focus:ring-2 focus:ring-[#c5a869]/25 shadow-2xs transition-all outline-hidden font-medium"
                     />
                   </div>
                 </div>
@@ -306,12 +340,11 @@ const {
                 <!-- Password Input Field -->
                 <div>
                   <div class="flex items-center justify-between mb-1.5">
-                    <label class="block text-xs font-semibold text-[#1a3828] tracking-wide">
+                    <label for="login-password-input" class="block text-xs font-semibold text-[#1a3828] tracking-wide">
                       Security Password
                     </label>
                     <router-link
-                      :to="{ path: '/login', hash: '#forgot-password' }"
-                      @click="isForgotModalOpen = true"
+                      to="/forgot-password"
                       class="text-xs font-medium text-[#89733c] hover:text-[#5c4a1e] hover:underline cursor-pointer transition-colors"
                     >
                       Forgot password?
@@ -324,13 +357,14 @@ const {
                     </div>
                     <input
                       ref="passwordInputRef"
+                      id="login-password-input"
                       :type="showPassword ? 'text' : 'password'"
                       v-model="password"
                       @keyup="checkCapsLock"
                       placeholder="••••••••••••"
                       autocomplete="current-password"
                       required
-                      class="w-full pl-10 pr-11 py-3 bg-[#fdfcf7] hover:bg-white text-sm text-[#0f291e] placeholder:text-[#9bb0a3] rounded-xl border border-[#d6dfd8] focus:border-[#c5a869] focus:ring-2 focus:ring-[#c5a869]/25 shadow-2xs transition-all duration-150 outline-hidden font-medium"
+                      class="w-full pl-10 pr-11 py-2.5 sm:py-3 bg-[#fdfcf7] hover:bg-white text-sm text-[#0f291e] placeholder:text-[#9bb0a3] rounded-xl border border-[#d6dfd8] focus:border-[#c5a869] focus:ring-2 focus:ring-[#c5a869]/25 shadow-2xs transition-all outline-hidden font-medium"
                     />
                     <button
                       type="button"
@@ -345,7 +379,7 @@ const {
                 </div>
 
                 <!-- Remember Me & Trust Device -->
-                <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center justify-between pt-0.5">
                   <label class="flex items-center gap-2.5 cursor-pointer select-none">
                     <input 
                       type="checkbox" 
@@ -359,11 +393,12 @@ const {
                 </div>
 
                 <!-- Primary Submit Action: Deep Forest Green with Gold Tone Sheen -->
-                <div class="pt-2">
+                <div class="pt-1.5">
                   <button
+                    id="normal-login-submit-button"
                     type="submit"
                     :disabled="isSubmitting"
-                    class="w-full h-12 rounded-xl bg-gradient-to-r from-[#123122] via-[#1a442f] to-[#123122] text-[#f8f5eb] font-semibold text-sm tracking-wide shadow-[0_4px_16px_rgba(18,49,34,0.25)] hover:shadow-[0_6px_22px_rgba(197,168,105,0.3)] hover:scale-[1.01] active:scale-[0.99] border border-[#c5a869]/40 flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden"
+                    class="w-full h-11 sm:h-12 rounded-xl bg-gradient-to-r from-[#123122] via-[#1a442f] to-[#123122] text-[#f8f5eb] font-semibold text-sm tracking-wide shadow-[0_4px_16px_rgba(18,49,34,0.25)] hover:shadow-[0_6px_22px_rgba(197,168,105,0.3)] hover:scale-[1.01] active:scale-[0.99] border border-[#c5a869]/40 flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden"
                   >
                     <!-- Shimmer Highlight Effect -->
                     <div class="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-1000 ease-in-out pointer-events-none"></div>
@@ -377,36 +412,52 @@ const {
                       <span class="text-[#f8f5eb]">Authenticating...</span>
                     </template>
                     <template v-else>
-                      <span class="text-[#f8f5eb]">Authenticate & Access Portal</span>
+                      <span class="text-[#f8f5eb]">Login</span>
                       <ArrowRight class="w-4 h-4 text-[#c5a869] group-hover:translate-x-0.5 transition-transform" />
                     </template>
                   </button>
                 </div>
+
+                <!-- Subtle "or" divider -->
+                <div class="relative my-4">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-[#e2e7e2]"></div>
+                  </div>
+                  <div class="relative flex justify-center text-xs uppercase">
+                    <span class="bg-[#FFFEFB] px-3 text-[10px] font-bold tracking-widest text-[#8ea095]">
+                      or
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Continue with Google Button -->
+                <div>
+                  <button
+                    id="google-login-button"
+                    type="button"
+                    @click="handleGoogleLogin"
+                    :disabled="isGoogleSubmitting"
+                    class="w-full h-11 rounded-xl bg-white hover:bg-[#f7faf8] text-[#1e3427] font-semibold text-xs tracking-wide border border-[#d6dfd8] hover:border-[#c5a869]/70 shadow-2xs hover:shadow-xs flex items-center justify-center gap-2.5 cursor-pointer transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <template v-if="isGoogleSubmitting">
+                      <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-[#255239]" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Connecting to Google...</span>
+                    </template>
+                    <template v-else>
+                      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                      </svg>
+                      <span>Continue with Google</span>
+                    </template>
+                  </button>
+                </div>
               </form>
-
-              <!-- Subtle Divider -->
-              <div class="relative my-7">
-                <div class="absolute inset-0 flex items-center">
-                  <div class="w-full border-t border-[#e2e7e2]"></div>
-                </div>
-                <div class="relative flex justify-center text-xs uppercase">
-                  <span class="bg-[#FFFEFB] px-3 text-[10px] font-bold tracking-widest text-[#8ea095]">
-                    Evaluation Shortcut
-                  </span>
-                </div>
-              </div>
-
-              <!-- Quick Demo Login Button -->
-              <div>
-                <button
-                  type="button"
-                  @click="handleDemoLogin"
-                  class="w-full py-2.5 px-4 rounded-xl bg-[#f5f8f5] hover:bg-[#edf3ee] border border-[#d3ded5] hover:border-[#c5a869]/60 text-xs font-semibold text-[#183927] flex items-center justify-center gap-2 cursor-pointer transition-all shadow-2xs group"
-                >
-                  <Sparkles class="w-3.5 h-3.5 text-[#bfa05d] group-hover:rotate-12 transition-transform" />
-                  <span>Populate Sample Officer Credentials</span>
-                </button>
-              </div>
 
               <!-- Bottom Security Notice -->
               <div class="mt-6 pt-5 border-t border-[#edf1ee] flex items-center justify-between text-[11px] text-[#788c80]">
@@ -440,85 +491,167 @@ const {
       </footer>
     </div>
 
-    <!-- FORGOT PASSWORD MODAL -->
+    <!-- FAST LOGIN MODAL OVERLAY -->
     <Teleport to="body">
       <div 
-        v-if="isForgotModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn"
+        v-if="isFastLoginModalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0a1811]/50 backdrop-blur-xs animate-fadeIn"
+        @click.self="closeFastLoginModal"
+        @keydown.esc="closeFastLoginModal"
+        tabindex="-1"
       >
         <div 
-          class="bg-[#FFFEFB] border border-[#c5a869]/40 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative"
+          id="fast-login-modal"
+          class="bg-[#FFFEFB] border border-[#c5a869]/40 rounded-2xl sm:rounded-3xl max-w-sm sm:max-w-[400px] w-full p-6 sm:p-7 shadow-[0_20px_50px_rgba(15,41,30,0.25)] relative transition-all"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="fast-login-title"
           @click.stop
         >
+          <!-- Close button (×) in top-right -->
           <button 
-            type="button"
-            @click="closeForgotModal"
-            class="absolute top-5 right-5 p-1.5 rounded-full text-[#7d9084] hover:text-[#0f291e] hover:bg-[#edf2ee] transition-colors cursor-pointer"
+            type="button" 
+            id="fast-login-close-button"
+            @click="closeFastLoginModal"
+            aria-label="Close Fast Login modal"
+            class="absolute top-5 right-5 p-1.5 rounded-full text-[#7a8e81] hover:text-[#0f291e] hover:bg-[#edf2ee] transition-colors cursor-pointer"
           >
             <X class="w-5 h-5" />
           </button>
 
-          <div class="mb-4">
-            <div class="w-10 h-10 rounded-xl bg-[#f0f4f1] text-[#245037] flex items-center justify-center mb-3">
-              <HelpCircle class="w-5 h-5 text-[#bfa05d]" />
+          <!-- Modal Title with 🔐 Lock icon -->
+          <div class="flex items-center gap-2.5 mb-4">
+            <div class="w-8 h-8 rounded-lg bg-[#133323] text-[#e8dfc8] flex items-center justify-center shrink-0 shadow-2xs border border-[#c5a869]/30">
+              <Lock class="w-4 h-4 text-[#c5a869]" />
             </div>
-            <h4 class="text-xl font-serif font-bold text-[#0f291e]">
-              Reset Officer Credentials
-            </h4>
-            <p class="text-xs text-[#5e7166] mt-1 leading-relaxed">
-              Enter your registered FDA email address. An authorized password reset link will be dispatched with security validation.
-            </p>
-          </div>
-
-          <div v-if="forgotError" class="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
-            <AlertCircle class="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
-            <span>{{ forgotError }}</span>
-          </div>
-
-          <div v-if="forgotSubmitted" class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 space-y-2 mb-4">
-            <p class="font-semibold flex items-center gap-1.5">
-              <CheckCircle2 class="w-4 h-4 text-emerald-600" />
-              Dispatch Instruction Issued
-            </p>
-            <p>
-              If <strong class="font-medium">{{ forgotEmail }}</strong> matches an active officer record in the CDRHR directory, recovery instructions have been sent.
-            </p>
-          </div>
-
-          <form v-else @submit.prevent="handleForgotSubmit" class="space-y-4 mb-4">
             <div>
-              <label class="block text-xs font-semibold text-[#183927] mb-1">
-                Official FDA Email
+              <h3 id="fast-login-title" class="text-lg font-serif font-bold text-[#0f291e] leading-tight">
+                Fast Login
+              </h3>
+              <p class="text-[11px] text-[#6b7f73] mt-0.5">
+                You're signing in as this saved account.
+              </p>
+            </div>
+          </div>
+
+          <!-- Non-editable Account Information Confirmation Box -->
+          <div class="mb-5 p-3.5 rounded-xl bg-[#f7f9f6] border border-[#dce4de] flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#123122] to-[#255239] text-[#e8dfc8] font-bold text-xs flex items-center justify-center border border-[#c5a869]/40 shadow-2xs shrink-0">
+              {{ savedAccount.initials || 'DS' }}
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-1">
+                <p class="text-sm font-bold text-[#0f291e] truncate">
+                  {{ savedAccount.name }}
+                </p>
+                <span class="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-full bg-[#133323] text-[#e8dfc8]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Verified
+                </span>
+              </div>
+              <p class="text-xs font-medium text-[#2d5c41] truncate">
+                {{ savedAccount.role }}
+              </p>
+              <p class="text-[11px] text-[#55695e] font-mono truncate">
+                {{ savedAccount.email }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Compact Inline Error inside modal -->
+          <div 
+            v-if="fastLoginError"
+            id="fast-login-error"
+            class="mb-4 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2 animate-fadeIn"
+          >
+            <AlertCircle class="w-4 h-4 text-rose-600 shrink-0" />
+            <span class="flex-1 font-medium">{{ fastLoginError }}</span>
+          </div>
+
+          <!-- Caps Lock Alert inside modal -->
+          <div 
+            v-if="isCapsLockOn"
+            class="mb-3 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2"
+          >
+            <span class="font-bold">CAPS LOCK is on</span>
+          </div>
+
+          <!-- Fast Login Password Form -->
+          <form @submit.prevent="handleFastLoginSubmit" class="space-y-4">
+            <div>
+              <label for="fast-password-input" class="block text-xs font-semibold text-[#1a3828] mb-1.5">
+                Security Password
               </label>
-              <input 
-                type="email" 
-                v-model="forgotEmail" 
-                required 
-                placeholder="e.g. officer.name@fda.gov.ph"
-                class="w-full px-3.5 py-2.5 bg-[#fdfcf7] text-sm text-[#0f291e] rounded-xl border border-[#d6dfd8] focus:border-[#c5a869] focus:ring-2 focus:ring-[#c5a869]/20 outline-hidden font-medium"
-              />
+              <div class="relative group">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#7d9285] group-focus-within:text-[#255239] transition-colors">
+                  <KeyRound class="w-4 h-4 stroke-[1.8]" />
+                </div>
+                <input
+                  id="fast-password-input"
+                  ref="fastPasswordInputRef"
+                  :type="fastLoginShowPassword ? 'text' : 'password'"
+                  v-model="fastLoginPassword"
+                  @keyup="checkCapsLock"
+                  placeholder="••••••••••••"
+                  autocomplete="current-password"
+                  required
+                  class="w-full pl-10 pr-11 py-2.5 bg-[#fdfcf7] hover:bg-white text-sm text-[#0f291e] placeholder:text-[#9bb0a3] rounded-xl border border-[#d6dfd8] focus:border-[#c5a869] focus:ring-2 focus:ring-[#c5a869]/25 shadow-2xs transition-all outline-hidden font-medium"
+                />
+                <button
+                  type="button"
+                  @click="fastLoginShowPassword = !fastLoginShowPassword"
+                  class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#7d9285] hover:text-[#1a3828] cursor-pointer transition-colors"
+                  :title="fastLoginShowPassword ? 'Hide password' : 'Show password'"
+                >
+                  <EyeOff v-if="fastLoginShowPassword" class="w-4 h-4" />
+                  <Eye v-else class="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
+            <!-- Login Button with Loading State -->
             <button
+              id="fast-login-submit-button"
               type="submit"
-              :disabled="isForgotSubmitting"
-              class="w-full py-2.5 rounded-xl bg-[#133323] hover:bg-[#1b4330] text-[#f8f5eb] font-semibold text-xs tracking-wide shadow-xs cursor-pointer transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              :disabled="isFastLoginSubmitting"
+              class="w-full h-11 rounded-xl bg-gradient-to-r from-[#123122] via-[#1a442f] to-[#123122] text-[#f8f5eb] font-semibold text-sm tracking-wide shadow-[0_4px_16px_rgba(18,49,34,0.25)] hover:shadow-[0_6px_20px_rgba(197,168,105,0.3)] hover:scale-[1.008] active:scale-[0.99] border border-[#c5a869]/40 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden"
             >
-              <span v-if="isForgotSubmitting">Dispatching...</span>
-              <span v-else>Request Password Dispatch</span>
+              <template v-if="isFastLoginSubmitting">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-[#c5a869]" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Authenticating...</span>
+              </template>
+              <template v-else>
+                <span>Login</span>
+                <ArrowRight class="w-4 h-4 text-[#c5a869] group-hover:translate-x-0.5 transition-transform" />
+              </template>
             </button>
-          </form>
 
-          <div class="border-t border-[#edf1ee] pt-3 text-[11px] text-[#718579] flex items-center justify-between">
-            <span>Regional IT Hotline: (074) 442-1234</span>
-            <router-link 
-              to="/login"
-              @click="closeForgotModal"
-              class="text-[#89733c] hover:underline cursor-pointer font-medium"
-            >
-              Back to Sign In
-            </router-link>
-          </div>
+            <!-- Secondary Action: Forgot password? Link directly to /forgot-password -->
+            <div class="text-center pt-0.5">
+              <router-link
+                to="/forgot-password"
+                id="fast-login-forgot-button"
+                @click="closeFastLoginModal"
+                class="text-xs font-medium text-[#89733c] hover:text-[#5c4a1e] hover:underline cursor-pointer transition-colors inline-block"
+              >
+                Forgot password?
+              </router-link>
+            </div>
+
+            <!-- Bottom Action: Switch account -->
+            <div class="border-t border-[#edf1ee] pt-3 text-center">
+              <button
+                type="button"
+                id="fast-login-switch-button"
+                @click="handleSwitchAccount"
+                class="text-xs font-semibold text-[#55695e] hover:text-[#133323] hover:underline cursor-pointer transition-colors"
+              >
+                Switch account
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </Teleport>
