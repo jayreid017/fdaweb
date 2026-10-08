@@ -111,9 +111,6 @@ async function handleResetSubmit() {
     if (res.success) {
       isSuccess.value = true;
 
-      // Cleanly sign out recovery session so user enters login fresh
-      await AuthService.logout();
-
       // Short delay countdown then redirect to /login
       redirectTimer = setInterval(() => {
         countdown.value--;
@@ -132,13 +129,17 @@ async function handleResetSubmit() {
   }
 }
 
-function goToLogin() {
+async function goToLogin() {
   if (redirectTimer) clearInterval(redirectTimer);
+  AuthService.setRecoveryMode(false);
+  await AuthService.logout();
   router.push('/login');
 }
 
-function requestNewLink() {
+async function requestNewLink() {
   if (redirectTimer) clearInterval(redirectTimer);
+  AuthService.setRecoveryMode(false);
+  await AuthService.logout();
   router.push('/forgot-password');
 }
 </script>
@@ -490,13 +491,14 @@ function requestNewLink() {
 
                 <!-- Back to Sign In Link -->
                 <div class="mt-6 pt-5 border-t border-[#edf1ee] flex items-center justify-between text-xs text-[#6e8275]">
-                  <router-link
-                    to="/login"
+                  <button
+                    type="button"
+                    @click="goToLogin"
                     class="inline-flex items-center gap-1.5 text-[#183a28] hover:text-[#c5a869] font-medium transition-colors cursor-pointer group"
                   >
                     <ArrowLeft class="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     <span>Return to Sign In</span>
-                  </router-link>
+                  </button>
                   <span class="text-[11px] text-[#96a99e]">FDA CDRHR Security</span>
                 </div>
               </div>

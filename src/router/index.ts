@@ -55,6 +55,23 @@ const routes = [
     }
   },
   {
+    path: '/settings',
+    name: 'Settings',
+    component: EstablishmentPage,
+    meta: {
+      title: 'Settings & Reset Password | FDA-CAR CDRHR Regulatory Portal',
+      requiresAuth: true
+    }
+  },
+  {
+    path: '/settings/password',
+    redirect: '/settings'
+  },
+  {
+    path: '/change-password',
+    redirect: '/settings'
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }
@@ -70,41 +87,50 @@ const router = createRouter({
 
 // Navigation Guards with Supabase Session Verification
 router.beforeEach(async (to, _from, next) => {
-  // 1. Intercept password recovery tokens from email links
-  const hash = window.location.hash || '';
-  const search = window.location.search || '';
+  // Step 1: Detect Supa
+  //  recovery information in URL hash or search
+  const hash = typeof window !== 'undefined' ? window.location.hash || '' : '';
+  const search = typeof window !== 'undefined' ? window.location.search || '' : '';
   const isUrlRecovery = hash.includes('type=recovery') || search.includes('type=recovery');
 
+  // Step 2: Set recovery mode if detected
   if (isUrlRecovery) {
     AuthService.setRecoveryMode(true);
-    if (to.path !== '/reset-password') {
-      next({ path: '/reset-password', hash: window.location.hash, query: to.query });
-      return;
-    }
   }
 
-  // Await Supabase initial session check
+  // Step 3: Wait for auth initialization
   await AuthService.waitForAuthReady();
 
-  // If in active password recovery session, restrict access to /reset-password
-  if (AuthService.isRecoveryMode.value && to.path !== '/reset-password' && to.path !== '/login') {
-    next({ path: '/reset-password' });
-    return;
-  }
-
+  // Set document title if specified
   if (to.meta.title) {
     document.title = String(to.meta.title);
   }
 
+  // Step 4: Recovery mode gets priority over normal authentication
+  if (AuthService.isRecoveryMode.value) {
+    if (to.path === '/reset-password') {
+      next();
+      return;
+    }
+    // Any other route attempted during recovery redirects to /reset-password
+    next({ path: '/reset-password' });
+    return;
+  }
+
+  // Step 5: Normal authentication checks (only when recovery mode is false)
   const isAuth = AuthService.isAuthenticated.value;
 
   if (to.meta.requiresAuth && !isAuth) {
     next({ path: '/login', query: { redirect: to.fullPath } });
-  } else if (to.meta.guestOnly && isAuth && !AuthService.isRecoveryMode.value) {
-    next({ path: '/' });
-  } else {
-    next();
+    return;
   }
+
+  if (to.meta.guestOnly && isAuth) {
+    next({ path: '/' });
+    return;
+  }
+
+  next();
 });
 
 export default router;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Search, Bell, ChevronDown, LogOut } from 'lucide-vue-next';
+import { Search, Bell, ChevronDown, LogOut, KeyRound } from 'lucide-vue-next';
 import { AuthService } from '../../services/authService';
 
 defineProps<{
@@ -90,6 +90,13 @@ function handleSignOut() {
           <ChevronDown class="w-3.5 h-3.5 text-[#718579] group-hover:text-[#1a2c22] transition-transform" :class="{ 'rotate-180': isUserMenuOpen }" />
         </div>
 
+        <!-- Backdrop to close dropdown on click outside -->
+        <div 
+          v-if="isUserMenuOpen" 
+          @click="isUserMenuOpen = false" 
+          class="fixed inset-0 z-40 cursor-default"
+        ></div>
+
         <!-- Luxury User Profile Dropdown Menu -->
         <div 
           v-if="isUserMenuOpen"
@@ -101,10 +108,27 @@ function handleSignOut() {
             <p class="text-[10px] text-[#55695e] mt-0.5">{{ AuthService.currentUser.value?.division || 'CDRHR Center • CAR' }}</p>
           </div>
           <div class="py-1">
+            <!-- Reset Password / Security settings button placed BEFORE Sign Out -->
+            <router-link
+              to="/settings"
+              @click="isUserMenuOpen = false"
+              class="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#183927] hover:bg-[#f3f7f4] flex items-center gap-2.5 cursor-pointer transition-colors group"
+            >
+              <div class="w-6 h-6 rounded-lg bg-[#183927]/10 flex items-center justify-center text-[#183927] group-hover:bg-[#183927] group-hover:text-[#f3ebd9] transition-colors">
+                <KeyRound class="w-3.5 h-3.5" />
+              </div>
+              <div class="flex-1">
+                <p class="leading-tight text-xs font-bold text-[#183927]">Reset Password</p>
+                <p class="text-[10px] text-[#708477] font-normal leading-tight mt-0.5">Account Security & Credentials</p>
+              </div>
+            </router-link>
+
+            <div class="my-1 border-t border-[#ecebe4]"></div>
+
             <button 
               type="button"
               @click="handleSignOut"
-              class="w-full px-4 py-2 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition-colors"
+              class="w-full px-4 py-2.5 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50 flex items-center gap-2.5 cursor-pointer transition-colors"
             >
               <LogOut class="w-3.5 h-3.5 text-rose-600" />
               <span>Sign Out to Login Page</span>

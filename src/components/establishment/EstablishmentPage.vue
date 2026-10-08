@@ -21,6 +21,7 @@ import AppFooter from '../layout/AppFooter.vue';
 // Views
 import EstablishmentListView from './views/EstablishmentListView.vue';
 import TrashView from './views/TrashView.vue';
+import SettingsView from './views/SettingsView.vue';
 
 // Modals & Notifications
 import EstablishmentFormModal from './EstablishmentFormModal.vue';
@@ -99,6 +100,8 @@ function syncNavFromRoute() {
     if (!hasLoadedTrash.value) {
       loadTrashData();
     }
+  } else if (route.path === '/settings' || route.path === '/settings/password' || route.path === '/change-password') {
+    activeNav.value = 'Settings';
   } else if (route.path === '/' || route.path === '/establishments') {
     activeNav.value = 'Establishment Management';
   }
@@ -112,6 +115,11 @@ function navigateToNav(navName: string) {
     }
     if (!hasLoadedTrash.value) {
       loadTrashData();
+    }
+  } else if (navName === 'Settings' || navName === 'Reset Password') {
+    activeNav.value = 'Settings';
+    if (route.path !== '/settings') {
+      router.push('/settings');
     }
   } else if (navName === 'Establishment Management' || navName === 'Home') {
     activeNav.value = navName;
@@ -289,7 +297,14 @@ onMounted(async () => {
             @refresh="loadTrashData"
           />
 
-          <!-- View 2: Active Establishments -->
+          <!-- View 2: Settings & Reset Password -->
+          <SettingsView
+            v-else-if="activeNav === 'Settings'"
+            @back="navigateToNav('Establishment Management')"
+            @toast="(type, title, msg) => addToast(type, title, msg || '')"
+          />
+
+          <!-- View 3: Active Establishments -->
           <EstablishmentListView
             v-else
             :establishments="establishments"

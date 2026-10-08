@@ -25,6 +25,10 @@ function detectIncomingRecovery(): boolean {
   try {
     const hash = window.location.hash || '';
     const search = window.location.search || '';
+    if (hash.includes('error=') || search.includes('error=')) {
+      sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+      return false;
+    }
     const isUrl = hash.includes('type=recovery') || search.includes('type=recovery');
     const isStored = sessionStorage.getItem(RECOVERY_STORAGE_KEY) === 'true';
     if (isUrl) {
@@ -79,7 +83,7 @@ function cleanRecoveryUrl(): void {
   if (typeof window === 'undefined') return;
   const hash = window.location.hash || '';
   const search = window.location.search || '';
-  if (hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('code=')) {
+  if (hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('code=') || hash.includes('access_token')) {
     window.history.replaceState(null, '', window.location.pathname);
   }
 }
@@ -97,47 +101,29 @@ export function initAuth(): Promise<void> {
   if (typeof window !== 'undefined') {
     const hash = window.location.hash || '';
     const search = window.location.search || '';
-    if (hash.includes('type=recovery') || search.includes('type=recovery')) {
-      isRecoveryMode.value = true;
+    if (!hash.includes('error=') && !search.includes('error=')) {
+      if (hash.includes('type=recovery') || search.includes('type=recovery')) {
+        isRecoveryMode.value = true;
+        try {
+          sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');
+        } catch {}
+      }
+    }
+  }
+
+  // 1. Initial cached profile for instantaneous UI render (normal sessions only)
+  if (!isRecoveryMode.value) {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
       try {
-        sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');
-      } catch {}
+        currentUser.value = JSON.parse(cached);
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
     }
   }
 
-  // 1. Initial cached profile for instantaneous UI render
-  const cached = localStorage.getItem(STORAGE_KEY);
-  if (cached) {
-    try {
-      currentUser.value = JSON.parse(cached);
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }
-
-  // 2. Fetch current active session from Supabase
-  supabase.auth.getSession().then(({ data: { session }, error }) => {
-    if (error) {
-      console.warn('[Supabase Auth] Session fetch notice:', error.message);
-    }
-
-    if (session?.user) {
-      currentSession.value = session;
-      const profile = parseUserProfile(session.user);
-      currentUser.value = profile;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-    } else {
-      currentSession.value = null;
-      currentUser.value = null;
-      localStorage.removeItem(STORAGE_KEY);
-    }
-    authReadyResolve();
-  }).catch((err) => {
-    console.error('[Supabase Auth] Initialization error:', err);
-    authReadyResolve();
-  });
-
-  // 3. Listen to all Supabase Auth State changes in real time
+  // 2. Single Supabase Auth State Change listener
   supabase.auth.onAuthStateChange((event, session) => {
     currentSession.value = session;
 
@@ -163,11 +149,51 @@ export function initAuth(): Promise<void> {
       return;
     }
 
+    // If in recovery mode, do not treat incoming session as normal persistent login
+    if (isRecoveryMode.value) {
+      if (session?.user) {
+        currentUser.value = parseUserProfile(session.user);
+      }
+      return;
+    }
+
+    // Normal authenticated session handling (SIGNED_IN, TOKEN_REFRESHED, INITIAL_SESSION)
     if (session?.user) {
       const profile = parseUserProfile(session.user);
       currentUser.value = profile;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    } else {
+      currentUser.value = null;
+      localStorage.removeItem(STORAGE_KEY);
     }
+  });
+
+  // 3. Fetch current active session from Supabase
+  supabase.auth.getSession().then(({ data: { session }, error }) => {
+    if (error) {
+      console.warn('[Supabase Auth] Session fetch notice:', error.message);
+    }
+
+    if (session?.user) {
+      currentSession.value = session;
+      const profile = parseUserProfile(session.user);
+      currentUser.value = profile;
+
+      // Only persist to localStorage if normal authenticated session, not during recovery
+      if (!isRecoveryMode.value) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      }
+    } else {
+      currentSession.value = null;
+      if (!isRecoveryMode.value) {
+        currentUser.value = null;
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+    authReadyResolve();
+  }).catch((err) => {
+    console.error('[Supabase Auth] Initialization error:', err);
+    authReadyResolve();
   });
 
   return authReadyPromise;
@@ -176,7 +202,7 @@ export function initAuth(): Promise<void> {
 export const AuthService = {
   currentUser: computed(() => currentUser.value),
   currentSession: computed(() => currentSession.value),
-  isAuthenticated: computed(() => !!currentUser.value),
+  isAuthenticated: computed(() => !!currentUser.value && !isRecoveryMode.value),
   isRecoveryMode: computed(() => isRecoveryMode.value),
   isLoading: computed(() => isLoading.value),
 
@@ -234,6 +260,11 @@ export const AuthService = {
       if (!data?.user) {
         throw new Error('No user returned from Supabase authentication.');
       }
+
+      isRecoveryMode.value = false;
+      try {
+        sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+      } catch {}
 
       currentSession.value = data.session;
       const profile = parseUserProfile(data.user);
@@ -354,8 +385,18 @@ export const AuthService = {
       }
 
       // Priority: VITE_SITE_URL or VITE_APP_URL, falling back to window.location.origin
-      const baseUrl = (import.meta.env.VITE_SITE_URL || import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/+$/, '');
+      const rawBase = (
+        import.meta.env.VITE_SITE_URL ||
+        import.meta.env.VITE_APP_URL ||
+        (typeof window !== 'undefined' ? window.location.origin : '')
+      ).trim();
+
+      // Ensure base URL has no accidental /reset-password suffix or trailing slashes
+      const baseUrl = rawBase.replace(/\/reset-password\/?$/, '').replace(/\/+$/, '');
       const redirectUrl = `${baseUrl}/reset-password`;
+
+      // Safe debug log: outputs only the target redirectUrl string (never sensitive tokens or credentials)
+      console.log('[Password Reset] redirectTo:', redirectUrl);
 
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo: redirectUrl
@@ -388,7 +429,7 @@ export const AuthService = {
         throw new Error('Password must be at least 8 characters.');
       }
 
-      const { data, error } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         password: cleanPassword
       });
 
@@ -396,17 +437,27 @@ export const AuthService = {
         throw error;
       }
 
-      if (data?.user) {
-        const profile = parseUserProfile(data.user);
-        currentUser.value = profile;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-      }
-
-      // Clear recovery state after successful update
+      // 1. Clear recovery mode
       isRecoveryMode.value = false;
+
+      // 2. Remove recovery flag from sessionStorage
       try {
         sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
       } catch {}
+
+      // 3. Clear locally cached user
+      currentUser.value = null;
+      currentSession.value = null;
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {}
+
+      // 4. Cleanly sign out recovery session from Supabase
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutErr) {
+        console.warn('[Supabase Auth] Recovery signout notice:', signOutErr);
+      }
 
       return {
         success: true,
@@ -423,12 +474,91 @@ export const AuthService = {
   },
 
   /**
+   * Update password for an authenticated officer from Settings page
+   */
+  async updateAuthenticatedPassword(
+    currentPassword: string,
+    newPassword: string,
+    signOutAfter = false
+  ): Promise<{ success: boolean; message: string }> {
+    isLoading.value = true;
+    try {
+      const cleanCurrent = currentPassword.trim();
+      const cleanNew = newPassword.trim();
+
+      if (!cleanCurrent) {
+        throw new Error('Please enter your current password.');
+      }
+      if (!cleanNew || cleanNew.length < 8) {
+        throw new Error('New password must be at least 8 characters.');
+      }
+      if (cleanCurrent === cleanNew) {
+        throw new Error('New password must be different from your current password.');
+      }
+
+      // 1. Verify active user session and email
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData?.user?.email || currentUser.value?.email;
+
+      if (!email) {
+        throw new Error('Active session could not be verified. Please sign in again.');
+      }
+
+      // 2. Authenticate with current password to verify identity
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email,
+        password: cleanCurrent
+      });
+
+      if (verifyError) {
+        console.warn('[Supabase Auth] Re-authentication failed:', verifyError.message);
+        throw new Error('Incorrect current password. Please verify your credentials and try again.');
+      }
+
+      // 3. Update to the new password
+      const { data, error } = await supabase.auth.updateUser({
+        password: cleanNew
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.user) {
+        const profile = parseUserProfile(data.user);
+        currentUser.value = profile;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      }
+
+      if (signOutAfter) {
+        await this.logout();
+      }
+
+      return {
+        success: true,
+        message: 'Your official credentials have been updated successfully!'
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: (err.message || 'Failed to update password.').replace(/supabase/gi, 'system')
+      };
+    } finally {
+      isLoading.value = false;
+    }
+  },
+
+  /**
    * Verify whether the current browser context holds a valid recovery session
    */
   async checkRecoveryState(): Promise<{ isValid: boolean; error?: string }> {
     // 1. Check for error parameters in hash or search query
-    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
-    const search = window.location.search.startsWith('?') ? window.location.search.slice(1) : '';
+    const hash = typeof window !== 'undefined' && window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : '';
+    const search = typeof window !== 'undefined' && window.location.search.startsWith('?')
+      ? window.location.search.slice(1)
+      : '';
     const hashParams = new URLSearchParams(hash);
     const searchParams = new URLSearchParams(search);
 
@@ -442,9 +572,10 @@ export const AuthService = {
       try {
         sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
       } catch {}
+      const errorDesc = hashParams.get('error_description') || searchParams.get('error_description');
       return {
         isValid: false,
-        error: 'Password reset link is invalid or has expired.'
+        error: errorDesc ? errorDesc.replace(/\+/g, ' ') : 'Password reset link is invalid or has expired.'
       };
     }
 
@@ -455,6 +586,10 @@ export const AuthService = {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error || !data?.session) {
           cleanRecoveryUrl();
+          isRecoveryMode.value = false;
+          try {
+            sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+          } catch {}
           return { isValid: false, error: 'Password reset link is invalid or has expired.' };
         }
         currentSession.value = data.session;
@@ -469,6 +604,10 @@ export const AuthService = {
         return { isValid: true };
       } catch {
         cleanRecoveryUrl();
+        isRecoveryMode.value = false;
+        try {
+          sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
+        } catch {}
         return { isValid: false, error: 'Password reset link is invalid or has expired.' };
       }
     }
@@ -476,15 +615,21 @@ export const AuthService = {
     // 3. Await Supabase initial session check
     await AuthService.waitForAuthReady();
 
-    let { data: { session }, error } = await supabase.auth.getSession();
-    if (!session && !error) {
-      await new Promise((r) => setTimeout(r, 350));
-      const retry = await supabase.auth.getSession();
-      session = retry.data?.session || null;
-      error = retry.error;
+    let session = currentSession.value;
+    if (!session) {
+      const initial = await supabase.auth.getSession();
+      session = initial.data?.session || null;
     }
 
-    if (error || !session) {
+    // If session is not immediately ready but recovery markers are present in URL, wait briefly for Supabase hash processing
+    if (!session && (hash.includes('access_token') || hash.includes('type=recovery') || isRecoveryMode.value)) {
+      for (let i = 0; i < 5 && !session; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+        session = currentSession.value || (await supabase.auth.getSession()).data?.session || null;
+      }
+    }
+
+    if (!session) {
       isRecoveryMode.value = false;
       try {
         sessionStorage.removeItem(RECOVERY_STORAGE_KEY);
@@ -496,11 +641,17 @@ export const AuthService = {
       };
     }
 
+    // Update active session & user
+    currentSession.value = session;
+    if (session.user) {
+      currentUser.value = parseUserProfile(session.user);
+    }
+
     // 4. Must be a recovery session (either from URL type=recovery, PASSWORD_RECOVERY event, or active recovery storage)
     const isUrlRecovery = hash.includes('type=recovery') || search.includes('type=recovery');
-    const isStorageRecovery = sessionStorage.getItem(RECOVERY_STORAGE_KEY) === 'true';
+    const isStoredRecovery = typeof window !== 'undefined' && sessionStorage.getItem(RECOVERY_STORAGE_KEY) === 'true';
 
-    if (isRecoveryMode.value || isUrlRecovery || isStorageRecovery) {
+    if (isRecoveryMode.value || isUrlRecovery || isStoredRecovery) {
       isRecoveryMode.value = true;
       try {
         sessionStorage.setItem(RECOVERY_STORAGE_KEY, 'true');

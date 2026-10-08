@@ -157,12 +157,13 @@ const emit = defineEmits<{
               </SidebarMenuButton>
             </SidebarMenuItem>
 
-            <!-- Settings (Disabled / Grayed Out) -->
-            <SidebarMenuItem class="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center cursor-not-allowed" title="Unavailable">
+            <!-- Settings & Reset Password (Active & Clickable) -->
+            <SidebarMenuItem class="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
               <SidebarMenuButton
-                :disabled="true"
-                tooltip="Settings (Unavailable)"
-                class="h-11 rounded-2xl px-3.5 gap-3 text-[#7f9486]/45 opacity-40 cursor-not-allowed select-none hover:bg-transparent hover:text-[#7f9486]/45 shadow-none pointer-events-none group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                :is-active="activeNav === 'Settings'"
+                tooltip="Settings & Reset Password"
+                @click="emit('navigate', 'Settings')"
+                class="h-11 rounded-2xl px-3.5 gap-3 cursor-pointer text-[#dfd7b8] hover:bg-[#1a3d2a] hover:text-[#f3ebd9] data-[active=true]:bg-[#254231] data-[active=true]:text-[#f3ebd9] data-[active=true]:font-semibold shadow-xs transition-colors group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
               >
                 <Sun class="w-5 h-5 shrink-0 stroke-[1.6]" />
                 <span class="group-data-[collapsible=icon]:hidden truncate text-xs sm:text-sm font-medium">Settings</span>
