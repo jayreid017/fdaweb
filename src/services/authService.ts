@@ -287,37 +287,6 @@ export const AuthService = {
   },
 
   /**
-   * Connect and sign in with Google OAuth via Supabase
-   */
-  async loginWithGoogle(): Promise<{ success: boolean; message?: string }> {
-    isLoading.value = true;
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        },
-      });
-
-      if (error) {
-        console.error('[Supabase Auth] Google Sign In Error:', error.message);
-        throw new Error(error.message);
-      }
-
-      return {
-        success: true
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message || 'Google authentication could not be completed.'
-      };
-    } finally {
-      isLoading.value = false;
-    }
-  },
-
-  /**
    * Register a new Officer account directly in Supabase
    */
   async signUp(

@@ -47,9 +47,6 @@ export function useLogin(emit?: (e: 'login-success') => void) {
   const fastLoginError = ref<string>('');
   const isFastLoginSubmitting = ref<boolean>(false);
 
-  // Google OAuth state
-  const isGoogleSubmitting = ref<boolean>(false);
-
   // DOM input refs
   const emailInputRef = ref<HTMLInputElement | null>(null);
   const passwordInputRef = ref<HTMLInputElement | null>(null);
@@ -279,23 +276,6 @@ export function useLogin(emit?: (e: 'login-success') => void) {
     }
   }
 
-  // Google OAuth Login
-  async function handleGoogleLogin() {
-    if (isGoogleSubmitting.value) return;
-    errorMessage.value = '';
-    isGoogleSubmitting.value = true;
-    try {
-      const res = await AuthService.loginWithGoogle();
-      if (!res.success && res.message) {
-        errorMessage.value = res.message;
-      }
-    } catch (err: any) {
-      errorMessage.value = err.message || 'Google sign-in could not be initiated.';
-    } finally {
-      isGoogleSubmitting.value = false;
-    }
-  }
-
   // Quick Sample Credentials Fast-Fill
   function handleDemoLogin() {
     email.value = 'officer.jdoe@fda.gov.ph';
@@ -358,9 +338,6 @@ export function useLogin(emit?: (e: 'login-success') => void) {
     handleFastLoginSubmit,
     handleSwitchAccount,
     openForgotFromFastLogin,
-    // Google login
-    isGoogleSubmitting,
-    handleGoogleLogin,
     // Normal login
     emailInputRef,
     passwordInputRef,
